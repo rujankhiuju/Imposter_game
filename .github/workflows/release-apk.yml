@@ -1,0 +1,109 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build Preview APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest --legacy-peer-deps
+
+      - name: Configure EAS
+        run: eas build:configure --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Preview APK
+        id: build
+        run: |
+          BUILD_URL=$(eas build --profile preview --platform android --non-interactive --wait --json 2>&1 | tee /dev/stderr | grep -o '"url":"[^"]*' | cut -d'"' -f4 | tail -1)
+          echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Download APK
+        id: download
+        run: |
+          curl -L "${{ steps.build.outputs.build_url }}" -o app-release.apk
+          echo "apk_path=app-release.apk" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: ${{ steps.download.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-aab:
+    name: Build Production AAB (Play Store)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.ref_name != 'v*-preview' && github.ref_name != 'v*-beta'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest --legacy-peer-deps
+
+      - name: Configure EAS
+        run: eas build:configure --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Production AAB
+        id: build
+        run: |
+          BUILD_URL=$(eas build --profile production --platform android --non-interactive --wait --json 2>&1 | tee /dev/stderr | grep -o '"url":"[^"]*' | cut -d'"' -f4 | tail -1)
+          echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Download AAB
+        id: download
+        run: |
+          curl -L "${{ steps.build.outputs.build_url }}" -o app-release.aab
+          echo "aab_path=app-release.aab" >> $GITHUB_OUTPUT
+
+      - name: Upload AAB as Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.download.outputs.aab_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
