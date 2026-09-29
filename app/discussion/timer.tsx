@@ -1,76 +1,84 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../../components/layout/SafeContainer';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { PillButton } from '../../components/ui/PillButton';
 import { TimerRing } from '../../components/ui/TimerRing';
 import { useGameStore } from '../../store/gameStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useTheme } from '../../hooks/useTheme';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 import { GAME_CONSTANTS } from '../../constants/game';
 
 export default function DiscussionTimerScreen() {
   const { settings, players, secretWord, phase, setPhase } = useGameStore();
   const { enableHaptics, enableSounds } = useSettingsStore();
+  const { colors } = useTheme();
   const { trigger: haptic } = useHaptics();
   const { play } = useSound();
 
   const [timeRemaining, setTimeRemaining] = useState(settings.roundTimerSeconds);
   const [isPaused, setIsPaused] = useState(false);
-  const [warningPlayed, setWarningPlayed] = useState(false);
+  const warnedRef = useRef(false);
+  const endedRef = useRef(false);
 
+  // Ticking countdown (pure state updates only).
   useEffect(() => {
     if (phase !== 'discussion') return;
 
     const interval = setInterval(() => {
-      if (!isPaused) {
-        setTimeRemaining((prev) => {
-          const next = prev - 1;
-          
-          if (next <= GAME_CONSTANTS.TIMER_WARNING_THRESHOLD && next > 0 && !warningPlayed) {
-            setWarningPlayed(true);
-            if (enableHaptics) haptic('warning');
-            if (enableSounds) play('timerWarning');
-          }
-          
-          if (next <= 0) {
-            if (enableHaptics) haptic('heavy');
-            if (enableSounds) play('reveal');
-            setPhase('voting');
-            return 0;
-          }
-          
-          return next;
-        });
-      }
+      if (isPaused) return;
+      setTimeRemaining((prev) => (prev <= 0 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [phase, isPaused, enableHaptics, enableSounds, haptic, play, setPhase]);
+  }, [phase, isPaused]);
 
+  // Warning + round-end side effects, driven by the current time value.
   useEffect(() => {
-    setTimeRemaining(settings.roundTimerSeconds);
-    setIsPaused(false);
-    setWarningPlayed(false);
-  }, [settings.roundTimerSeconds, phase]);
+    if (phase !== 'discussion') return;
+
+    if (timeRemaining <= 0) {
+      if (!endedRef.current) {
+        endedRef.current = true;
+        if (enableHaptics) haptic('heavy');
+        if (enableSounds) play('reveal');
+        setPhase('voting');
+        router.push('/voting');
+      }
+      return;
+    }
+
+    if (timeRemaining <= GAME_CONSTANTS.TIMER_WARNING_THRESHOLD && !warnedRef.current) {
+      warnedRef.current = true;
+      if (enableHaptics) haptic('warning');
+      if (enableSounds) play('timerWarning');
+    }
+  }, [timeRemaining, phase, enableHaptics, enableSounds, haptic, play, setPhase]);
+
+  const handleSkip = () => {
+    setPhase('voting');
+    haptic('heavy');
+    play('reveal');
+    router.push('/voting');
+  };
 
   const progress = 1 - timeRemaining / settings.roundTimerSeconds;
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const imposterCount = players.filter((p) => p.role === 'imposter').length;
 
   return (
     <SafeContainer avoidKeyboard={false}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.phaseLabel}>DISCUSSION PHASE</Text>
-          <Text style={styles.wordHint}>
-            Word: {secretWord} · {players.filter(p => p.role === 'imposter').length} Imposter{players.filter(p => p.role === 'imposter').length > 1 ? 's' : ''}
+          <Text style={[styles.phaseLabel, { color: colors.textMuted }]}>DISCUSS!</Text>
+          <View style={[styles.wordCard, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.wordCaption, { color: colors.textMuted }]}>THE WORD IS</Text>
+            <Text style={[styles.wordText, { color: colors.textPrimary }]}>{secretWord}</Text>
+          </View>
+          <Text style={[styles.meta, { color: colors.textSecondary }]}>
+            {imposterCount} Imposter{imposterCount > 1 ? 's' : ''} hiding among {players.length} players
           </Text>
         </View>
 
@@ -78,48 +86,31 @@ export default function DiscussionTimerScreen() {
           duration={settings.roundTimerSeconds}
           progress={progress}
           isPaused={isPaused}
-          size={280}
+          size={260}
           strokeWidth={12}
         />
 
         <View style={styles.controls}>
-          <TouchableOpacity
+          <PillButton
+            title={isPaused ? '▶ Resume' : '⏸ Pause'}
+            variant="outline"
             onPress={() => {
               setIsPaused(!isPaused);
               haptic('light');
             }}
-            style={[
-              styles.controlButton,
-              isPaused && styles.controlButtonActive,
-            ]}
-            hitSlop={{ top: 16, bottom: 16, left: 24, right: 24 }}
-          >
-            <Text style={[
-              styles.controlButtonText,
-              { color: isPaused ? COLORS.neonAmber : COLORS.textSecondary },
-            ]}>
-              {isPaused ? 'RESUME' : 'PAUSE'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => {
-              setPhase('voting');
-              haptic('heavy');
-              play('reveal');
-            }}
             style={styles.controlButton}
-            hitSlop={{ top: 16, bottom: 16, left: 24, right: 24 }}
-          >
-            <Text style={styles.controlButtonText}>SKIP</Text>
-          </TouchableOpacity>
+          />
+          <PillButton
+            title="Skip to Vote  ▸▸"
+            variant="solid"
+            onPress={handleSkip}
+            style={styles.controlButton}
+          />
         </View>
 
-        <View style={styles.instruction}>
-          <Text style={styles.instructionText}>
-            Discuss who the Imposter might be. Vote when ready.
-          </Text>
-        </View>
+        <Text style={[styles.instruction, { color: colors.textSecondary }]}>
+          Discuss who you think the Imposter is. Vote when you’re ready.
+        </Text>
       </View>
     </SafeContainer>
   );
@@ -130,59 +121,52 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SPACING.xl,
     justifyContent: 'center',
+    gap: SPACING.lg,
   },
   header: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    gap: SPACING.md,
   },
   phaseLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    marginBottom: SPACING.sm,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    letterSpacing: 2,
   },
-  wordHint: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
+  wordCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+    width: '100%',
+  },
+  wordCaption: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: 2,
+  },
+  wordText: {
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    marginTop: SPACING.xs,
+  },
+  meta: {
+    fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: SPACING.lg,
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.xl,
+    gap: SPACING.md,
   },
   controlButton: {
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  controlButtonActive: {
-    borderColor: COLORS.neonAmber,
-    backgroundColor: `${COLORS.neonAmber}22`,
-  },
-  controlButtonText: {
-    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    flex: 1,
+    maxWidth: 180,
   },
   instruction: {
-    paddingHorizontal: SPACING.lg,
-  },
-  instructionText: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: TYPOGRAPHY.fontSize.md * TYPOGRAPHY.lineHeight.relaxed,
   },

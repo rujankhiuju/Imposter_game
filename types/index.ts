@@ -1,6 +1,7 @@
 export interface Category {
   id: string;
   name: string;
+  emoji?: string;
   neonColor: string;
   hintPrefix: string;
   words: string[];
@@ -48,6 +49,7 @@ export interface StoredSettings {
   enableHaptics: boolean;
   enableAccessibility: boolean;
   firstLaunch: boolean;
+  theme: 'light' | 'dark';
 }
 
 export interface StoredCategories {

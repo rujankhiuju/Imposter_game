@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, TOUCH_TARGET } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, TYPOGRAPHY, TOUCH_TARGET } from '../../constants/theme';
 
 interface ScreenHeaderProps {
   title: string;
@@ -8,19 +9,23 @@ interface ScreenHeaderProps {
   onClose?: () => void;
   showBack?: boolean;
   showClose?: boolean;
-  neonColor?: string;
   rightContent?: React.ReactNode;
 }
 
+/**
+ * Centered uppercase display-font header with back/close affordances,
+ * matching the Imposter Who? in-game headers.
+ */
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   title,
   onBack,
   onClose,
   showBack = false,
   showClose = false,
-  neonColor = COLORS.neonCyan,
   rightContent,
 }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
       <View style={styles.left}>
@@ -32,25 +37,22 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
             accessibilityRole="button"
             hitSlop={TOUCH_TARGET.minimum}
           >
-            <Text style={[styles.backText, { color: neonColor }]}>←</Text>
+            <Text style={[styles.navGlyph, { color: colors.textPrimary }]}>←</Text>
           </Pressable>
         )}
         {showClose && onClose && (
           <Pressable
             onPress={onClose}
-            style={styles.closeButton}
+            style={styles.backButton}
             accessibilityLabel="Close"
             accessibilityRole="button"
             hitSlop={TOUCH_TARGET.minimum}
           >
-            <Text style={[styles.closeText, { color: COLORS.textSecondary }]}>✕</Text>
+            <Text style={[styles.navGlyph, { color: colors.textPrimary }]}>✕</Text>
           </Pressable>
         )}
       </View>
-      <Text style={[
-        styles.title,
-        { color: COLORS.textPrimary },
-      ]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
         {title}
       </Text>
       <View style={[styles.right, { width: showBack || showClose ? 48 : 0 }]}>
@@ -81,23 +83,17 @@ const styles = StyleSheet.create({
   backButton: {
     padding: SPACING.sm,
   },
-  backText: {
+  navGlyph: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.xl,
-    lineHeight: TYPOGRAPHY.fontSize.xl,
-  },
-  closeButton: {
-    padding: SPACING.sm,
-  },
-  closeText: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    lineHeight: TYPOGRAPHY.fontSize.xl,
+    lineHeight: TYPOGRAPHY.fontSize.xl + 4,
   },
   title: {
-    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
-    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.md,
     textAlign: 'center',
     flex: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });

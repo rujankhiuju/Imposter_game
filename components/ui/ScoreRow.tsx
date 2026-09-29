@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, withSpring, withDelay, useAnimatedStyle } from 'react-native-reanimated';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import Animated, { FadeInRight } from 'react-native-reanimated';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 
 interface ScoreRowProps {
   playerName: string;
@@ -9,74 +10,67 @@ interface ScoreRowProps {
   roundScore: number;
   role?: 'civilian' | 'imposter';
   isWinner?: boolean;
-  neonColor?: string;
   index?: number;
 }
 
+/** White score row with role badge, round delta, and total. */
 export const ScoreRow: React.FC<ScoreRowProps> = ({
   playerName,
   totalScore,
   roundScore,
   role,
   isWinner = false,
-  neonColor = COLORS.neonCyan,
   index = 0,
 }) => {
-  const opacity = useSharedValue(0);
-  const translateX = useSharedValue(30);
-  const scale = useSharedValue(0.9);
+  const { colors } = useTheme();
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      { translateX: translateX.value },
-      { scale: scale.value },
-    ],
-  }));
+  const formatScore = (score: number) => (score % 1 === 0 ? score.toString() : score.toFixed(1));
 
-  React.useEffect(() => {
-    opacity.value = withDelay(index * 80, withSpring(1, { damping: 15, stiffness: 120 }));
-    translateX.value = withDelay(index * 80, withSpring(0, { damping: 15, stiffness: 120 }));
-    scale.value = withDelay(index * 80, withSpring(1, { damping: 15, stiffness: 120 }));
-  }, [index]);
-
-  const formatScore = (score: number) => score % 1 === 0 ? score.toString() : score.toFixed(1);
-
-  const roleColors = {
-    civilian: COLORS.success,
-    imposter: COLORS.error,
-  };
+  const roleBadgeColors =
+    role === 'imposter'
+      ? { bg: colors.danger, fg: '#FFFFFF' }
+      : { bg: colors.primary, fg: colors.primaryText };
 
   return (
-    <Animated.View style={[animatedStyle, styles.row]}>
-      <View style={styles.info}>
-        <View style={styles.nameContainer}>
-          <Text style={styles.nameText}>{playerName}</Text>
-          {role && (
-            <View style={[styles.roleBadge, { backgroundColor: roleColors[role] }]}>
-              <Text style={styles.roleText}>{role.toUpperCase()}</Text>
-            </View>
-          )}
-          {isWinner && (
-            <View style={[styles.winnerBadge, { backgroundColor: neonColor }]}>
-              <Text style={styles.winnerText}>WINNER</Text>
-            </View>
-          )}
-        </View>
+    <Animated.View
+      entering={FadeInRight.delay(index * 80).duration(350)}
+      style={[
+        styles.row,
+        SHADOWS.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
+      <View style={styles.nameContainer}>
+        <Text style={[styles.nameText, { color: colors.textPrimary }]} numberOfLines={1}>
+          {playerName}
+        </Text>
+        {role && (
+          <View style={[styles.roleBadge, { backgroundColor: roleBadgeColors.bg }]}>
+            <Text style={[styles.roleText, { color: roleBadgeColors.fg }]}>{role.toUpperCase()}</Text>
+          </View>
+        )}
+        {isWinner && (
+          <View style={[styles.winnerBadge, { backgroundColor: colors.chipBg }]}>
+            <Text style={[styles.winnerText, { color: colors.textPrimary }]}>WINNER</Text>
+          </View>
+        )}
       </View>
       <View style={styles.scores}>
         <View style={styles.scoreColumn}>
-          <Text style={styles.scoreLabel}>ROUND</Text>
-          <Text style={[
-            styles.scoreValue,
-            { color: roundScore > 0 ? COLORS.success : COLORS.textSecondary },
-          ]}>
-            {roundScore > 0 ? '+' : ''}{formatScore(roundScore)}
+          <Text style={[styles.scoreLabel, { color: colors.textMuted }]}>ROUND</Text>
+          <Text
+            style={[
+              styles.scoreValue,
+              { color: roundScore > 0 ? colors.success : colors.textSecondary },
+            ]}
+          >
+            {roundScore > 0 ? '+' : ''}
+            {formatScore(roundScore)}
           </Text>
         </View>
         <View style={styles.scoreColumn}>
-          <Text style={styles.scoreLabel}>TOTAL</Text>
-          <Text style={[styles.scoreValue, { color: neonColor }]}>
+          <Text style={[styles.scoreLabel, { color: colors.textMuted }]}>TOTAL</Text>
+          <Text style={[styles.scoreValue, { color: colors.textPrimary }]}>
             {formatScore(totalScore)}
           </Text>
         </View>
@@ -92,63 +86,57 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
     marginVertical: SPACING.xs,
-  },
-  info: {
-    flex: 1,
   },
   nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+    flex: 1,
     flexWrap: 'wrap',
+    marginRight: SPACING.sm,
   },
   nameText: {
-    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textPrimary,
   },
   roleBadge: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 3,
     borderRadius: RADIUS.full,
   },
   roleText: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textOnNeon,
+    fontSize: 9,
+    letterSpacing: 0.5,
   },
   winnerBadge: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 3,
     borderRadius: RADIUS.full,
   },
   winnerText: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textOnNeon,
+    fontSize: 9,
+    letterSpacing: 0.5,
   },
   scores: {
     flexDirection: 'row',
-    gap: SPACING.xl,
+    gap: SPACING.lg,
   },
   scoreColumn: {
     alignItems: 'flex-end',
   },
   scoreLabel: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
+    fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   scoreValue: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    lineHeight: TYPOGRAPHY.fontSize.lg * TYPOGRAPHY.lineHeight.tight,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
 });

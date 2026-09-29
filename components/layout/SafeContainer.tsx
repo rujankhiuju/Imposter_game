@@ -1,6 +1,6 @@
 import React from 'react';
 import { SafeAreaView, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 
 interface SafeContainerProps {
   children: React.ReactNode;
@@ -15,31 +15,19 @@ export const SafeContainer: React.FC<SafeContainerProps> = ({
   avoidKeyboard = true,
   flex = true,
 }) => {
+  const { colors } = useTheme();
+
   const content = (
-    <View style={[styles.container, flex && styles.flex, style]}>
+    <View style={[styles.container, flex && styles.flex, { backgroundColor: colors.background }, style]}>
       {children}
     </View>
   );
 
-  if (avoidKeyboard && Platform.OS === 'ios') {
+  if (avoidKeyboard) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <KeyboardAvoidingView
-          behavior="padding"
-          style={styles.keyboardAvoiding}
-          keyboardVerticalOffset={0}
-        >
-          {content}
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
-
-  if (avoidKeyboard && Platform.OS === 'android') {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView
-          behavior="height"
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardAvoiding}
           keyboardVerticalOffset={0}
         >
@@ -50,7 +38,7 @@ export const SafeContainer: React.FC<SafeContainerProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       {content}
     </SafeAreaView>
   );
@@ -59,14 +47,12 @@ export const SafeContainer: React.FC<SafeContainerProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   keyboardAvoiding: {
     flex: 1,
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   flex: {
     flex: 1,

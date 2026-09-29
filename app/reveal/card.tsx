@@ -1,92 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import Animated, { useSharedValue, withSpring, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
 import { SafeContainer } from '../../components/layout/SafeContainer';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { ScreenHeader } from '../../components/layout/ScreenHeader';
+import { PillButton } from '../../components/ui/PillButton';
 import { useGameStore } from '../../store/gameStore';
 import { useGameFlow } from '../../hooks/useGameFlow';
-import { useHaptics } from '../../hooks/useHaptics';
-import { useSound } from '../../hooks/useSound';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, CARD } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, TOUCH_TARGET, SHADOWS } from '../../constants/theme';
 
+const HOLD_MS = 300;
+
+/**
+ * Secret role card. Static pastel card (no 3D flip):
+ * press and HOLD to reveal the word — release to hide it again.
+ * A camera-shy pattern that keeps the word off-screen between peeks.
+ */
 export default function RevealCardScreen() {
-  const { player } = useLocalSearchParams<{ player: string }>();
-  const playerIndex = parseInt(player || '0', 10);
-
-  const { players, currentPlayerIndex, phase, settings } = useGameStore();
+  const { colors } = useTheme();
+  const { players, currentPlayerIndex, categoryHint, secretWord } = useGameStore();
   const { beginReveal, proceedToNextPlayer } = useGameFlow();
-  const { trigger: haptic } = useHaptics();
-  const { play } = useSound();
 
+  const params = useLocalSearchParams<{ player?: string }>();
+  const playerIndex = params.player !== undefined ? Number(params.player) : Number(currentPlayerIndex);
   const currentPlayer = players[playerIndex];
-  const isCurrentTurn = playerIndex === currentPlayerIndex;
 
+  const [revealData, setRevealData] = useState<{
+    word: string;
+    hint: string;
+    isImposter: boolean;
+  } | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [revealData, setRevealData] = useState<{ word: string; hint: string; isImposter: boolean } | null>(null);
+  const [hasSeen, setHasSeen] = useState(false);
+  const [holdTimer, setHoldTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  const flip = useSharedValue(0);
-  const scale = useSharedValue(1);
+  const isImposter = revealData?.isImposter ?? currentPlayer?.role === 'imposter';
 
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { perspective: 1000 },
-      { rotateY: `${flip.value}deg` },
-      { scale: scale.value },
-    ],
-  }));
-
-  const frontStyle = useAnimatedStyle(() => {
-    const rotateY = flip.value;
-    return {
-      opacity: rotateY > 90 ? 0 : 1,
-      transform: [
-        { perspective: 1000 },
-        { rotateY: `${rotateY}deg` },
-      ],
-      backfaceVisibility: 'hidden',
-    };
-  });
-
-  const backStyle = useAnimatedStyle(() => {
-    const rotateY = flip.value + 180;
-    return {
-      opacity: rotateY > 90 ? 0 : 1,
-      transform: [
-        { perspective: 1000 },
-        { rotateY: `${rotateY}deg` },
-      ],
-      backfaceVisibility: 'hidden',
-    };
-  });
-
-  useEffect(() => {
-    if (isCurrentTurn && !revealed) {
-      const data = beginReveal();
+  const startHold = () => {
+    if (revealed) return;
+    const timer = setTimeout(() => {
+      const data = revealData ?? beginReveal();
       setRevealData(data);
-      flip.value = withSpring(180, { damping: 15, stiffness: 150 }, (finished) => {
-        if (finished) {
-          runOnJS(setRevealed)(true);
-        }
-      });
-    } else if (!isCurrentTurn) {
-      setRevealed(false);
-      setRevealData(null);
-      flip.value = 0;
-    }
-  }, [isCurrentTurn, playerIndex]);
+      setRevealed(true);
+      setHasSeen(true);
+    }, HOLD_MS);
+    setHoldTimer(timer);
+  };
 
-  const handleCardPress = () => {
-    if (!isCurrentTurn) return;
-    if (!revealed) {
-      const data = beginReveal();
-      setRevealData(data);
-      flip.value = withSpring(180, { damping: 15, stiffness: 150 }, (finished) => {
-        if (finished) {
-          runOnJS(setRevealed)(true);
-        }
-      });
+  const cancelHold = () => {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      setHoldTimer(null);
     }
+    setRevealed(false);
   };
 
   const handleNext = () => {
@@ -102,101 +68,92 @@ export default function RevealCardScreen() {
     return null;
   }
 
-  const isImposter = currentPlayer.role === 'imposter';
-  const neonColor = settings.categoryId 
-    ? useGameStore.getState().settings.categoryId 
-    : 'movies';
+  const cardColor = isImposter ? colors.revealImposter : colors.revealCivilian;
+  // Show live store values once revealed (beginReveal keeps the store in sync).
+  const shownWord = revealed ? (revealData?.word ?? secretWord) : '';
+  const shownHint = revealed ? (revealData?.hint ?? categoryHint) : '';
 
   return (
     <SafeContainer avoidKeyboard={false}>
+      <ScreenHeader title="IMPOSTER" showBack onBack={() => router.back()} />
+
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.playerLabel}>PLAYER {playerIndex + 1} OF {players.length}</Text>
-          <Text style={[
-            styles.playerName,
-            { color: neonColor },
-          ]}>
+        <View style={styles.turnBlock}>
+          <Text style={[styles.turnLabel, { color: colors.textMuted }]}>
+            PLAYER {playerIndex + 1} OF {players.length}
+          </Text>
+          <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
             {currentPlayer.name}
           </Text>
         </View>
 
-        <View style={styles.cardContainer}>
-          <Pressable onPress={handleCardPress}>
-            <Animated.View style={[styles.card, cardStyle, styles.cardFaceContainer]}>
-              <Animated.View style={[styles.cardFace, styles.front, frontStyle]}>
-                <View style={styles.cardBack}>
-                  <Text style={styles.cardBackText}>TAP TO REVEAL</Text>
-                  <View style={styles.cardPattern}>
-                    {[...Array(5)].map((_, i) => (
-                      <View key={i} style={styles.patternLine} />
-                    ))}
-                  </View>
-                </View>
-              </Animated.View>
+        <Pressable
+          onPressIn={startHold}
+          onPressOut={cancelHold}
+          style={({ pressed }) => [
+            styles.card,
+            SHADOWS.raised,
+            {
+              backgroundColor: cardColor,
+              transform: [{ scale: pressed && revealed ? 1.02 : 1 }],
+            },
+          ]}
+          accessibilityLabel="Secret card, press and hold to reveal"
+          accessibilityRole="button"
+        >
+          <View style={styles.cardTop}>
+            <Text style={[styles.cardName, { color: colors.onReveal }]} numberOfLines={1}>
+              {currentPlayer.name.toUpperCase()}
+            </Text>
+          </View>
 
-              <Animated.View style={[styles.cardFace, styles.back, backStyle]}>
-                {revealData && (
-                <View style={styles.revealedContent}>
-                  {revealData.isImposter ? (
-                    <View style={styles.imposterReveal}>
-                      <Text style={styles.imposterLabel}>YOU ARE THE</Text>
-                      <Text style={[
-                        styles.imposterTitle,
-                        { color: COLORS.error },
-                      ]}>
-                        IMPOSTER
-                      </Text>
-                      <View style={styles.hintContainer}>
-                        <Text style={styles.hintLabel}>YOUR HINT:</Text>
-                        <Text style={[
-                          styles.hintText,
-                          { color: COLORS.neonAmber },
-                        ]}>
-                          {revealData.hint}
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.civilianReveal}>
-                      <Text style={styles.wordLabel}>YOUR WORD:</Text>
-                      <Text style={[
-                        styles.wordText,
-                        { color: neonColor },
-                      ]}>
-                        {revealData.word}
-                      </Text>
-                      <View style={styles.hintContainer}>
-                        <Text style={styles.hintLabel}>CATEGORY:</Text>
-                        <Text style={[
-                          styles.hintText,
-                          { color: COLORS.textSecondary },
-                        ]}>
-                          {revealData.hint}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+          {revealed ? (
+            isImposter ? (
+              <View style={styles.revealBlock}>
+                <Text style={styles.imposterText}>YOU ARE THE IMPOSTER!</Text>
+                <View style={styles.hintPill}>
+                  <Text style={[styles.hintText, { color: colors.textPrimary }]}>{shownHint}</Text>
                 </View>
-              )}
-            </Animated.View>
-          </Animated.View>
+                <Text style={styles.bluffHint}>
+                  Bluff your way through — you don’t know the word!
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.revealBlock}>
+                <View style={styles.wordPill}>
+                  <Text style={styles.wordText} numberOfLines={3}>{shownWord}</Text>
+                </View>
+                <Text style={styles.hintCaption}>{shownHint}</Text>
+              </View>
+            )
+          ) : (
+            <View style={styles.revealBlock}>
+              <View style={styles.holdBadge}>
+                <Text style={styles.holdBadgeText}>✊</Text>
+              </View>
+              <Text style={[styles.holdText, { color: colors.onReveal }]}>PRESS &amp; HOLD TO REVEAL</Text>
+            </View>
+          )}
+
+          <View style={styles.cardBottom}>
+            <Text style={[styles.cardFooter, { color: colors.onReveal }]}>
+              {isImposter ? 'IMPOSTER' : 'CIVILIAN'}
+            </Text>
+          </View>
         </Pressable>
-        </View>
 
-        <View style={styles.instruction}>
-          <Text style={styles.instructionText}>
-            {revealed ? 'Memorize, then pass to next player' : 'Tap card to reveal your role'}
-          </Text>
-        </View>
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>
+          {hasSeen
+            ? 'Pass the phone on when you remember it.'
+            : 'Hold the card until the word appears, memorise it, then let go.'}
+        </Text>
 
-        {revealed && isCurrentTurn && (
-          <NeonButton
-            title={playerIndex === players.length - 1 ? 'Start Discussion' : 'Pass to Next Player'}
-            variant="primary"
+        {hasSeen && (
+          <PillButton
+            title={playerIndex + 1 < players.length ? 'Next Player  ▸▸' : 'Start Discussion  ▸▸'}
+            variant="solid"
             onPress={handleNext}
-            neonColor={neonColor}
             fullWidth
-            style={styles.nextButton}
           />
         )}
       </View>
@@ -208,159 +165,129 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: SPACING.lg,
-    justifyContent: 'center',
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    justifyContent: 'center',
+    gap: SPACING.lg,
+    paddingBottom: SPACING.xl,
   },
-  playerLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.body,
+  turnBlock: {
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  turnLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
     letterSpacing: 2,
-    marginBottom: SPACING.xs,
   },
   playerName: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
     fontSize: TYPOGRAPHY.fontSize.xxl,
-    textAlign: 'center',
-  },
-  cardContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
   },
   card: {
-    width: CARD.width,
-    height: CARD.height,
-    maxWidth: CARD.maxWidth,
-    maxHeight: CARD.maxHeight,
-    borderRadius: CARD.borderRadius,
-  },
-  cardFaceContainer: {
-    width: CARD.width,
-    height: CARD.height,
-    maxWidth: CARD.maxWidth,
-    maxHeight: CARD.maxHeight,
-    borderRadius: CARD.borderRadius,
-  },
-  cardFace: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: CARD.borderRadius,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: CARD.borderRadius,
-  },
-  front: {
-    zIndex: 2,
-  },
-  back: {
-    zIndex: 1,
-  },
-  cardBack: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBackText: {
-    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
-  },
-  cardPattern: {
     width: '100%',
-    height: '100%',
+    maxWidth: 340,
+    aspectRatio: 0.72,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  patternLine: {
-    height: 1,
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 1,
-  },
-  revealedContent: {
+  cardTop: {
+    alignItems: 'center',
     width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.lg,
   },
-  imposterReveal: {
-    alignItems: 'center',
-  },
-  imposterLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: SPACING.sm,
-  },
-  imposterTitle: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xxxl,
+  cardName: {
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    letterSpacing: 1,
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.fontSize.xxxl * 1.1,
-    marginBottom: SPACING.xl,
   },
-  civilianReveal: {
+  cardBottom: {
     alignItems: 'center',
+    width: '100%',
   },
-  wordLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
+  cardFooter: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: 3,
+    opacity: 0.6,
+  },
+  revealBlock: {
+    alignItems: 'center',
+    gap: SPACING.md,
+    flex: 1,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  holdBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  holdBadgeText: {
+    fontSize: 32,
+  },
+  holdText: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     letterSpacing: 2,
-    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  wordPill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    width: '100%',
+    alignItems: 'center',
   },
   wordText: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xxxl,
-    textAlign: 'center',
-    lineHeight: TYPOGRAPHY.fontSize.xxxl * 1.1,
-    marginBottom: SPACING.xl,
-  },
-  hintContainer: {
-    alignItems: 'center',
-    paddingTop: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    width: '100%',
-  },
-  hintLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: SPACING.xs,
-  },
-  hintText: {
-    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
-    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    color: '#111114',
     textAlign: 'center',
   },
-  instruction: {
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-    paddingHorizontal: SPACING.lg,
-  },
-  instructionText: {
+  hintCaption: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
+    color: '#111114',
+    opacity: 0.7,
     textAlign: 'center',
   },
-  nextButton: {
-    marginTop: SPACING.md,
-    maxWidth: 320,
+  imposterText: {
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    color: '#D32F2F',
+    textAlign: 'center',
+    lineHeight: 34,
+  },
+  hintPill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  hintText: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    textAlign: 'center',
+  },
+  bluffHint: {
+    fontFamily: TYPOGRAPHY.fontFamily.body,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: '#111114',
+    opacity: 0.7,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
+  },
+  helper: {
+    fontFamily: TYPOGRAPHY.fontFamily.body,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
+    minHeight: TOUCH_TARGET.minimum - SPACING.sm,
   },
 });

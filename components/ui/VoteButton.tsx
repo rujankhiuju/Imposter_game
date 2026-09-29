@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, Pressable } from 'react-native';
-import Animated, { useSharedValue, withSpring, useAnimatedStyle } from 'react-native-reanimated';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, TOUCH_TARGET } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, TOUCH_TARGET, SHADOWS } from '../../constants/theme';
 
 interface VoteButtonProps {
   playerName: string;
@@ -11,9 +11,12 @@ interface VoteButtonProps {
   disabled?: boolean;
   isRevealing?: boolean;
   revealRole?: 'civilian' | 'imposter';
-  neonColor?: string;
 }
 
+/**
+ * Flat player tile for voting: white card, name centered.
+ * On reveal, tiles turn lime (civilian) or red (imposter).
+ */
 export const VoteButton: React.FC<VoteButtonProps> = ({
   playerName,
   isSelected,
@@ -22,108 +25,71 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   disabled = false,
   isRevealing = false,
   revealRole,
-  neonColor = COLORS.neonCyan,
 }) => {
-  const scale = useSharedValue(1);
-  const glow = useSharedValue(0);
+  const { colors } = useTheme();
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    shadowColor: neonColor,
-    shadowOpacity: glow.value * 0.5,
-    shadowRadius: glow.value * 20,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: glow.value * 10,
-  }));
+  let backgroundColor = colors.surface;
+  let borderColor = colors.border;
+  let textColor = colors.textPrimary;
 
-  const handlePressIn = () => {
-    if (!disabled) {
-      scale.value = withSpring(0.96, { damping: 15, stiffness: 200 });
-    }
-  };
-
-  const handlePressOut = () => {
-    if (!disabled) {
-      scale.value = withSpring(1, { damping: 15, stiffness: 200 });
-    }
-  };
-
-  React.useEffect(() => {
-    if (isRevealing && revealRole === 'imposter') {
-      glow.value = withSpring(1, { damping: 10, stiffness: 80 });
-    } else if (isRevealing && revealRole === 'civilian') {
-      glow.value = withSpring(0, { damping: 10, stiffness: 80 });
-    } else if (isSelected) {
-      glow.value = withSpring(0.5, { damping: 10, stiffness: 80 });
+  if (isRevealing) {
+    if (revealRole === 'imposter') {
+      backgroundColor = colors.danger;
+      borderColor = colors.danger;
+      textColor = '#FFFFFF';
     } else {
-      glow.value = withSpring(0, { damping: 10, stiffness: 80 });
+      backgroundColor = colors.primary;
+      borderColor = colors.primary;
+      textColor = colors.primaryText;
     }
-  }, [isSelected, isRevealing, revealRole]);
-
-  const backgroundColor = isRevealing
-    ? revealRole === 'imposter'
-      ? COLORS.error
-      : COLORS.success
-    : isSelected
-    ? `${neonColor}33`
-    : COLORS.surfaceElevated;
-
-  const borderColor = isRevealing
-    ? revealRole === 'imposter'
-      ? COLORS.error
-      : COLORS.success
-    : isSelected
-    ? neonColor
-    : COLORS.border;
+  } else if (isSelected) {
+    backgroundColor = colors.primary;
+    borderColor = colors.primary;
+    textColor = colors.primaryText;
+  }
 
   return (
-    <Animated.View style={[animatedStyle, styles.container]}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled || isRevealing}
-        style={({ pressed }) => [
-          styles.button,
-          {
-            backgroundColor,
-            borderColor,
-            borderWidth: isRevealing || isSelected ? 3 : 2,
-            opacity: disabled || isRevealing ? 0.7 : pressed ? 0.9 : 1,
-            minHeight: TOUCH_TARGET.comfortable,
-          },
-        ]}
-      >
-        <View style={styles.content}>
-          <Text style={[
-            styles.nameText,
-            { color: isRevealing ? COLORS.textOnNeon : COLORS.textPrimary },
-          ]}>
-            {playerName}
-          </Text>
-          <View style={styles.voteCountContainer}>
-            <Text style={[
-              styles.voteCountText,
-              { color: isRevealing ? COLORS.textOnNeon : COLORS.textSecondary },
-            ]}>
-              {voteCount} vote{voteCount !== 1 ? 's' : ''}
-            </Text>
-          </View>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || isRevealing}
+      style={({ pressed }) => [
+        styles.button,
+        SHADOWS.card,
+        {
+          backgroundColor,
+          borderColor,
+          borderWidth: 2,
+          opacity: disabled && !isRevealing ? 0.6 : pressed ? 0.9 : 1,
+          minHeight: TOUCH_TARGET.comfortable,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected, disabled: disabled || isRevealing }}
+    >
+      <View style={styles.content}>
+        <Text style={[styles.nameText, { color: textColor }]} numberOfLines={1}>
+          {playerName}
+        </Text>
+        <View style={styles.metaRow}>
+          {!isRevealing && voteCount > 0 && (
+            <View style={[styles.voteBadge, { backgroundColor: colors.chipBg }]}>
+              <Text style={[styles.voteBadgeText, { color: colors.textSecondary }]}>
+                {voteCount} vote{voteCount !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
+          {isRevealing && revealRole === 'imposter' && (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>IMPOSTER</Text>
+            </View>
+          )}
         </View>
-        {isRevealing && revealRole === 'imposter' && (
-          <Text style={styles.revealBadge}>
-            IMPOSTER
-          </Text>
-        )}
-      </Pressable>
-    </Animated.View>
+      </View>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: SPACING.xs,
-  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -131,33 +97,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.lg,
-    minHeight: TOUCH_TARGET.comfortable,
+    marginVertical: SPACING.xs,
   },
   content: {
     flex: 1,
-  },
-  nameText: {
-    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-  },
-  voteCountContainer: {
-    marginTop: SPACING.xs,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    justifyContent: 'space-between',
   },
-  voteCountText: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-  },
-  revealBadge: {
+  nameText: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  voteBadge: {
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+  },
+  voteBadgeText: {
+    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textOnNeon,
-    backgroundColor: COLORS.error,
+    fontWeight: '600',
+  },
+  roleBadge: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.full,
-    marginLeft: SPACING.md,
+    backgroundColor: '#FFFFFF',
+  },
+  roleBadgeText: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: '#E53935',
+    letterSpacing: 1,
   },
 });

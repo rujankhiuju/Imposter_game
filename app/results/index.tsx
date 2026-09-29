@@ -1,60 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../../components/layout/SafeContainer';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { PillButton } from '../../components/ui/PillButton';
 import { ScoreRow } from '../../components/ui/ScoreRow';
 import { useGameStore } from '../../store/gameStore';
 import { useScoreStore } from '../../store/scoreStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useHaptics } from '../../hooks/useHaptics';
-import { useSound } from '../../hooks/useSound';
-import { calculateRoundScores, determineWinner } from '../../utils/scoring';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { determineWinner } from '../../utils/scoring';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 
+/**
+ * Round summary. Scoring already happened in `finishVoting()` when the
+ * voting screen advanced here — this screen only displays the outcome.
+ */
 export default function ResultsScreen() {
-  const { 
-    players, 
-    settings, 
-    round, 
-    phase, 
-    resetGame, 
-    resetSession,
-    setPlayers,
-  } = useGameStore();
-  const { sessionScores, addSessionScore, resetSessionScores, saveGameToHistory } = useScoreStore();
-  const { firstLaunch, setFirstLaunch } = useSettingsStore();
-  const { trigger: haptic } = useHaptics();
-  const { play } = useSound();
+  const { players, round, resetGame, resetSession } = useGameStore();
+  const { resetSessionScores } = useScoreStore();
+  const { setFirstLaunch } = useSettingsStore();
+  const { colors } = useTheme();
 
-  const [scored, setScored] = useState(false);
-  const [winner, setWinner] = useState<'imposters' | 'civilians'>('civilians');
+  const winner = determineWinner(players);
+  const imposters = players.filter((p) => p.role === 'imposter');
+  const impostersCaught = imposters.some((p) => p.votesReceived > 0);
+  const winnerText = winner === 'imposters' ? 'IMPOSTERS WIN!' : 'CIVILIANS WIN!';
+  const bannerColor = winner === 'imposters' ? colors.revealImposter : colors.primary;
+  const bannerTextColor = winner === 'imposters' ? '#111114' : colors.primaryText;
 
-  useEffect(() => {
-    if (!scored) {
-      const updatedPlayers = calculateRoundScores(players, settings);
-      const gameWinner = determineWinner(updatedPlayers);
-      
-      setPlayers(updatedPlayers);
-      setWinner(gameWinner);
-      
-      const scores = updatedPlayers.map(p => ({
-        playerId: p.id,
-        playerName: p.name,
-        totalScore: p.totalScore,
-        roundsPlayed: round,
-      }));
-      
-      saveGameToHistory(settings, scores, gameWinner);
-      setScored(true);
-      
-      haptic(gameWinner === 'imposters' ? 'warning' : 'success');
-      play(gameWinner === 'imposters' ? 'lose' : 'win');
-    }
-  }, [scored, players, settings, round]);
+  const sortedPlayers = [...players].sort((a, b) => b.totalScore - a.totalScore);
 
   const handleNextRound = () => {
-    setScored(false);
     resetGame();
     router.push('/reveal/card');
   };
@@ -65,60 +41,79 @@ export default function ResultsScreen() {
       'This will reset all scores and start a new session.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'End Party', 
+        {
+          text: 'End Party',
           style: 'destructive',
           onPress: () => {
             resetSession();
             resetSessionScores();
             setFirstLaunch(false);
             router.replace('/');
-          }
+          },
         },
       ]
     );
   };
 
-  const imposters = players.filter(p => p.role === 'imposter');
-  const winnerColor = winner === 'imposters' ? COLORS.error : COLORS.success;
-  const winnerText = winner === 'imposters' ? 'IMPOSTERS WIN' : 'CIVILIANS WIN';
-
-  const sortedPlayers = [...players].sort((a, b) => b.totalScore - a.totalScore);
-
   return (
     <SafeContainer avoidKeyboard={false}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={[styles.winnerBanner, { backgroundColor: `${winnerColor}33`, borderColor: winnerColor }]}>
-            <Text style={[styles.winnerText, { color: winnerColor }]}>
-              {winnerText}
-            </Text>
-            <Text style={styles.roundText}>
-              Round {round} Complete
-            </Text>
+          <View style={[styles.winnerBanner, SHADOWS.raised, { backgroundColor: bannerColor }]}>
+            <Text style={[styles.winnerText, { color: bannerTextColor }]}>{winnerText}</Text>
+            <Text style={[styles.roundText, { color: bannerTextColor }]}>Round {round} complete</Text>
           </View>
+          <Text style={[styles.secretWord, { color: colors.textSecondary }]}>
+            Imposter{imposters.length > 1 ? 's' : ''}: {imposters.map((p) => p.name).join(', ')}
+            {!impostersCaught && ' — not caught!'}
+          </Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.reveals}>
-            {players.map((player, index) => (
-              <View key={player.id} style={styles.revealCard}>
-                <View style={[
-                  styles.revealRole,
-                  { backgroundColor: player.role === 'imposter' ? COLORS.error : COLORS.success },
-                ]}>
-                  <Text style={styles.revealRoleText}>
+            {players.map((player) => (
+              <View
+                key={player.id}
+                style={[
+                  styles.revealCard,
+                  SHADOWS.card,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: player.role === 'imposter' ? colors.revealImposter : colors.border,
+                    borderWidth: player.role === 'imposter' ? 2 : 1,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.revealRole,
+                    {
+                      backgroundColor:
+                        player.role === 'imposter' ? colors.revealImposter : colors.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.revealRoleText,
+                      { color: player.role === 'imposter' ? '#D32F2F' : colors.primaryText },
+                    ]}
+                  >
                     {player.role.toUpperCase()}
                   </Text>
                 </View>
-                <Text style={styles.revealName}>{player.name}</Text>
-                <Text style={styles.revealWord}>
-                  {player.role === 'imposter' ? '—' : player.word}
+                <Text style={[styles.revealName, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {player.name}
                 </Text>
-                <Text style={[
-                  styles.revealVotes,
-                  { color: player.votesReceived > 0 ? COLORS.neonPink : COLORS.textMuted },
-                ]}>
+                <Text style={[styles.revealWord, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {player.role === 'imposter' ? '(didn’t know it)' : player.word}
+                </Text>
+                <Text
+                  style={[
+                    styles.revealVotes,
+                    { color: player.votesReceived > 0 ? colors.danger : colors.textMuted },
+                  ]}
+                >
                   {player.votesReceived} vote{player.votesReceived !== 1 ? 's' : ''}
                 </Text>
               </View>
@@ -126,7 +121,7 @@ export default function ResultsScreen() {
           </View>
 
           <View style={styles.scoresSection}>
-            <Text style={styles.sectionTitle}>SCORES</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>SCORES</Text>
             {sortedPlayers.map((player, index) => (
               <ScoreRow
                 key={player.id}
@@ -134,29 +129,19 @@ export default function ResultsScreen() {
                 totalScore={player.totalScore}
                 roundScore={player.roundScore}
                 role={player.role}
-                isWinner={player.role === (winner === 'imposters' ? 'imposter' : 'civilian') && player.votesReceived === 0}
-                neonColor={winnerColor}
+                isWinner={
+                  player.role === (winner === 'imposters' ? 'imposter' : 'civilian') &&
+                  player.votesReceived === 0
+                }
                 index={index}
               />
             ))}
           </View>
         </ScrollView>
 
-        <View style={styles.actions}>
-          <NeonButton
-            title="Next Round"
-            variant="primary"
-            onPress={handleNextRound}
-            neonColor={winnerColor}
-            style={styles.actionButton}
-          />
-          <NeonButton
-            title="End Party"
-            variant="ghost"
-            onPress={handleEndParty}
-            neonColor={COLORS.textMuted}
-            style={styles.actionButton}
-          />
+        <View style={[styles.actions, { borderTopColor: colors.border }]}>
+          <PillButton title="▶  Next Round" onPress={handleNextRound} fullWidth style={styles.actionButton} />
+          <PillButton title="End Party" variant="outline" onPress={handleEndParty} fullWidth style={styles.actionButton} />
         </View>
       </View>
     </SafeContainer>
@@ -170,25 +155,32 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.lg,
   },
   winnerBanner: {
-    padding: SPACING.xl,
+    padding: SPACING.lg,
     borderRadius: RADIUS.xl,
-    borderWidth: 2,
     alignItems: 'center',
   },
   winnerText: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xxxl,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xxl,
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.fontSize.xxxl * 1.1,
-    marginBottom: SPACING.sm,
+    letterSpacing: 1,
   },
   roundText: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textSecondary,
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginTop: SPACING.xs,
+    opacity: 0.8,
+  },
+  secretWord: {
+    fontFamily: TYPOGRAPHY.fontFamily.body,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    textAlign: 'center',
+    marginTop: SPACING.md,
   },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
@@ -199,55 +191,50 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: SPACING.md,
     justifyContent: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   revealCard: {
     width: 140,
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     alignItems: 'center',
+    gap: 2,
   },
   revealRole: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.full,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   revealRoleText: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textOnNeon,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   revealName: {
     fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   revealWord: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
+    textAlign: 'center',
+    minHeight: 34,
   },
   revealVotes: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.xs,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   scoresSection: {
-    marginTop: SPACING.xl,
+    marginTop: SPACING.lg,
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: SPACING.md,
@@ -257,7 +244,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     gap: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
   },
   actionButton: {
     width: '100%',

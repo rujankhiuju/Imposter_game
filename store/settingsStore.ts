@@ -8,6 +8,7 @@ const defaultSettings: StoredSettings = {
   enableHaptics: true,
   enableAccessibility: false,
   firstLaunch: true,
+  theme: 'light',
 };
 
 type SettingsStore = StoredSettings & {
@@ -15,6 +16,7 @@ type SettingsStore = StoredSettings & {
   setEnableHaptics: (value: boolean) => void;
   setEnableAccessibility: (value: boolean) => void;
   setFirstLaunch: (value: boolean) => void;
+  setTheme: (value: 'light' | 'dark') => void;
   resetSettings: () => void;
 };
 
@@ -27,6 +29,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setEnableHaptics: (enableHaptics) => set({ enableHaptics }),
       setEnableAccessibility: (enableAccessibility) => set({ enableAccessibility }),
       setFirstLaunch: (firstLaunch) => set({ firstLaunch }),
+      setTheme: (theme) => set({ theme }),
 
       resetSettings: () => set(defaultSettings),
     }),

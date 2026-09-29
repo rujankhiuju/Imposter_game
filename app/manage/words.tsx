@@ -1,26 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeContainer } from '../../components/layout/SafeContainer';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { PillButton } from '../../components/ui/PillButton';
 import { InputField } from '../../components/ui/InputField';
 import { useCategoryStore } from '../../store/categoryStore';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 
 export default function ManageWordsScreen() {
   const { category } = useLocalSearchParams<{ category: string }>();
   const { categories, addWord, removeWord, getAllWords } = useCategoryStore();
+  const { colors } = useTheme();
 
-  const selectedCategory = categories.find(c => c.id === category);
+  const selectedCategory = categories.find((c) => c.id === category);
   const [newWord, setNewWord] = useState('');
-  const [words, setWords] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (selectedCategory) {
-      setWords(getAllWords(selectedCategory.id));
-    }
-  }, [selectedCategory, getAllWords]);
+  // Derived on render — the store subscription re-renders this screen
+  // whenever built-in or custom words change.
+  const words = selectedCategory ? getAllWords(selectedCategory.id) : [];
 
   const handleAddWord = () => {
     if (!newWord.trim()) {
@@ -31,7 +29,7 @@ export default function ManageWordsScreen() {
       Alert.alert('Error', 'Word must be 30 characters or fewer');
       return;
     }
-    if (words.some(w => w.toLowerCase() === newWord.trim().toLowerCase())) {
+    if (words.some((w) => w.toLowerCase() === newWord.trim().toLowerCase())) {
       Alert.alert('Error', 'This word already exists');
       return;
     }
@@ -51,7 +49,7 @@ export default function ManageWordsScreen() {
     return (
       <SafeContainer>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Category not found</Text>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>Category not found</Text>
         </View>
       </SafeContainer>
     );
@@ -62,50 +60,43 @@ export default function ManageWordsScreen() {
   return (
     <SafeContainer avoidKeyboard={true}>
       <View style={styles.container}>
-        <ScreenHeader 
-          title={selectedCategory.name.toUpperCase()} 
-          neonColor={selectedCategory.neonColor}
+        <ScreenHeader
+          title={selectedCategory.name.toUpperCase()}
           onBack={() => router.back()}
           showBack
         />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.addWordForm}>
+          <View style={[styles.addWordForm, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <InputField
               label="Add New Word"
               value={newWord}
               onChangeText={setNewWord}
               placeholder="Enter a word..."
-              neonColor={selectedCategory.neonColor}
               onSubmitEditing={handleAddWord}
               returnKeyType="done"
             />
-            <NeonButton
-              title="Add Word"
-              variant="primary"
-              onPress={handleAddWord}
-              neonColor={selectedCategory.neonColor}
-              fullWidth
-              style={styles.addButton}
-            />
+            <PillButton title="Add Word" onPress={handleAddWord} fullWidth style={styles.addButton} />
           </View>
 
           <View style={styles.wordList}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
               WORDS ({words.length})
             </Text>
             {words.length === 0 ? (
-              <Text style={styles.emptyText}>No words yet. Add some above!</Text>
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                No words yet. Add some above!
+              </Text>
             ) : (
-              words.map((word, index) => (
-                <View key={word} style={styles.wordItem}>
-                  <Text style={[
-                    styles.wordText,
-                    { color: isBuiltInWord(word) ? COLORS.textPrimary : COLORS.neonAmber },
-                  ]}>
+              words.map((word) => (
+                <View
+                  key={word}
+                  style={[styles.wordItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <Text style={[styles.wordText, { color: colors.textPrimary }]} numberOfLines={2}>
                     {word}
                     {isBuiltInWord(word) && (
-                      <Text style={styles.builtinBadge}>BUILT-IN</Text>
+                      <Text style={[styles.builtinBadge, { color: colors.textMuted }]}>BUILT-IN</Text>
                     )}
                   </Text>
                   {!isBuiltInWord(word) && (
@@ -113,8 +104,9 @@ export default function ManageWordsScreen() {
                       onPress={() => handleRemoveWord(word)}
                       style={styles.removeButton}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel={`Remove ${word}`}
                     >
-                      <Text style={styles.removeButtonText}>✕</Text>
+                      <Text style={[styles.removeButtonText, { color: colors.danger }]}>✕</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -144,27 +136,24 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textMuted,
     textAlign: 'center',
   },
   addWordForm: {
     marginBottom: SPACING.xl,
     padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: SPACING.md,
   },
   addButton: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.xs,
   },
   wordList: {
     gap: SPACING.sm,
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: SPACING.md,
@@ -174,10 +163,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: SPACING.sm,
   },
   wordText: {
     fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
@@ -188,7 +176,6 @@ const styles = StyleSheet.create({
   builtinBadge: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
     marginLeft: SPACING.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -199,6 +186,5 @@ const styles = StyleSheet.create({
   removeButtonText: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.error,
   },
 });

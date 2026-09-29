@@ -1,109 +1,126 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../../components/layout/SafeContainer';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { PillButton } from '../../components/ui/PillButton';
 import { useSettingsStore } from '../../store/settingsStore';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 
 export default function SettingsScreen() {
-  const { 
-    enableSounds, 
-    enableHaptics, 
-    enableAccessibility, 
-    firstLaunch,
-    setEnableSounds, 
-    setEnableHaptics, 
+  const {
+    enableSounds,
+    enableHaptics,
+    enableAccessibility,
+    setEnableSounds,
+    setEnableHaptics,
     setEnableAccessibility,
-    setFirstLaunch,
+    setTheme,
     resetSettings,
   } = useSettingsStore();
+  const { colors, mode } = useTheme();
 
   const handleReset = () => {
     resetSettings();
   };
 
+  const switchProps = (value: boolean, onChange: (v: boolean) => void) => ({
+    value,
+    onValueChange: onChange,
+    thumbColor: value ? colors.primary : colors.textMuted,
+    trackColor: { false: colors.borderLight, true: `${colors.primary}66` },
+  });
+
   return (
     <SafeContainer avoidKeyboard={false}>
       <View style={styles.container}>
-        <ScreenHeader 
-          title="SETTINGS" 
-          neonColor={COLORS.neonViolet}
-          onBack={() => router.back()}
-          showBack
-        />
+        <ScreenHeader title="SETTINGS" onBack={() => router.back()} showBack />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>GAMEPLAY</Text>
-            
+          <View style={[styles.section, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>APPEARANCE</Text>
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Sound Effects</Text>
-                <Text style={styles.settingDescription}>
-                  Play sounds for card flips, votes, and round results
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Theme</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  Light is the classic Imposter Who? look
                 </Text>
               </View>
-              <Switch
-                value={enableSounds}
-                onValueChange={setEnableSounds}
-                thumbColor={enableSounds ? COLORS.neonViolet : COLORS.textMuted}
-                trackColor={{ false: COLORS.border, true: `${COLORS.neonViolet}66` }}
-              />
+              <View style={[styles.segment, { backgroundColor: colors.chipBg }]}>
+                {(['light', 'dark'] as const).map((option) => {
+                  const active = mode === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => setTheme(option)}
+                      style={[
+                        styles.segmentItem,
+                        active && { backgroundColor: active ? colors.surface : 'transparent' },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          { color: active ? colors.textPrimary : colors.textMuted },
+                        ]}
+                      >
+                        {option === 'light' ? '☀️ Light' : '🌙 Dark'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.section, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>GAMEPLAY</Text>
+
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Sound Effects</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  Play sounds for card reveals, votes, and round results
+                </Text>
+              </View>
+              <Switch {...switchProps(enableSounds, setEnableSounds)} />
             </View>
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Haptic Feedback</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Haptic Feedback</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                   Vibration on card reveal, vote, and timer warnings
                 </Text>
               </View>
-              <Switch
-                value={enableHaptics}
-                onValueChange={setEnableHaptics}
-                thumbColor={enableHaptics ? COLORS.neonViolet : COLORS.textMuted}
-                trackColor={{ false: COLORS.border, true: `${COLORS.neonViolet}66` }}
-              />
+              <Switch {...switchProps(enableHaptics, setEnableHaptics)} />
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>ACCESSIBILITY</Text>
-            
-            <View style={styles.settingRow}>
+          <View style={[styles.section, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>ACCESSIBILITY</Text>
+
+            <View style={[styles.settingRow, styles.settingRowLast]}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Screen Reader Support</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Screen Reader Support</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                   Enable VoiceOver/TalkBack optimizations (experimental)
                 </Text>
               </View>
-              <Switch
-                value={enableAccessibility}
-                onValueChange={setEnableAccessibility}
-                thumbColor={enableAccessibility ? COLORS.neonViolet : COLORS.textMuted}
-                trackColor={{ false: COLORS.border, true: `${COLORS.neonViolet}66` }}
-              />
+              <Switch {...switchProps(enableAccessibility, setEnableAccessibility)} />
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>DATA</Text>
-            
-            <NeonButton
-              title="Reset All Settings"
-              variant="danger"
-              onPress={handleReset}
-              neonColor={COLORS.error}
-              fullWidth
-              style={styles.resetButton}
-            />
+            <PillButton title="Reset All Settings" variant="danger" onPress={handleReset} fullWidth />
           </View>
 
-          <View style={styles.versionInfo}>
-            <Text style={styles.versionText}>Imposter v1.0.0</Text>
-            <Text style={styles.versionText}>Built with Expo & React Native</Text>
+          <View style={[styles.versionInfo, { borderTopColor: colors.border, borderTopWidth: 1 }]}>
+            <Text style={[styles.versionText, { color: colors.textMuted }]}>Imposter v1.0.1</Text>
+            <Text style={[styles.versionText, { color: colors.textMuted }]}>Built with Expo &amp; React Native</Text>
           </View>
         </ScrollView>
       </View>
@@ -121,17 +138,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   section: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
     padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: SPACING.lg,
@@ -140,6 +154,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: SPACING.md,
     marginBottom: SPACING.lg,
   },
   settingRowLast: {
@@ -149,30 +164,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
   settingDescription: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textSecondary,
+    lineHeight: TYPOGRAPHY.fontSize.sm * TYPOGRAPHY.lineHeight.relaxed,
   },
-  resetButton: {
-    marginTop: SPACING.md,
+  segment: {
+    flexDirection: 'row',
+    borderRadius: RADIUS.full,
+    padding: 4,
+    gap: 4,
+  },
+  segmentItem: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  segmentText: {
+    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
   },
   versionInfo: {
     alignItems: 'center',
     paddingTop: SPACING.xl,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    marginTop: SPACING.xl,
+    marginTop: SPACING.lg,
   },
   versionText: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
     marginBottom: SPACING.xs,
   },
 });

@@ -1,72 +1,65 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, Text, Animated, TextInputProps } from 'react-native';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, TOUCH_TARGET } from '../../constants/theme';
+import { View, TextInput, StyleSheet, Text, TextInputProps } from 'react-native';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, TOUCH_TARGET } from '../../constants/theme';
 
 interface InputFieldProps extends TextInputProps {
   label?: string;
   error?: string;
   helperText?: string;
-  neonColor?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   value?: string;
 }
 
+/** Flat white text field with a bold border — Imposter Who? setup style. */
 export const InputField: React.FC<InputFieldProps> = ({
   label,
   error,
   helperText,
-  neonColor = COLORS.neonCyan,
   leftIcon,
   rightIcon,
   style,
   ...props
 }) => {
-  const borderColor = error ? COLORS.error : neonColor;
-  const textColor = error ? COLORS.error : COLORS.textSecondary;
+  const { colors } = useTheme();
+
+  const borderColor = error ? colors.danger : colors.borderLight;
 
   return (
     <View style={[styles.container, style]}>
       {label && (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
       )}
-      <View style={styles.inputWrapper}>
-        {leftIcon && (
-          <View style={styles.iconLeft}>
-            {leftIcon}
-          </View>
-        )}
+      <View
+        style={[
+          styles.inputWrapper,
+          { backgroundColor: colors.surface, borderColor },
+        ]}
+      >
+        {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
         <TextInput
           style={[
             styles.input,
             {
-              borderColor,
-              color: COLORS.textPrimary,
+              color: colors.textPrimary,
               paddingLeft: leftIcon ? SPACING.md : SPACING.lg,
               paddingRight: rightIcon ? SPACING.md : SPACING.lg,
               minHeight: TOUCH_TARGET.comfortable,
             },
           ]}
           {...props}
-          placeholderTextColor={COLORS.textMuted}
-          selectionColor={neonColor}
-          cursorColor={neonColor}
+          placeholderTextColor={colors.textMuted}
+          selectionColor={colors.primary}
+          cursorColor={colors.textPrimary}
         />
-        {rightIcon && (
-          <View style={styles.iconRight}>
-            {rightIcon}
-          </View>
-        )}
+        {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
       </View>
       {error && (
-        <Text style={[styles.errorText, { color: COLORS.error }]}>
-          {error}
-        </Text>
+        <Text style={[styles.helperText, { color: colors.danger }]}>{error}</Text>
       )}
       {helperText && !error && (
-        <Text style={[styles.helperText, { color: textColor }]}>
-          {helperText}
-        </Text>
+        <Text style={[styles.helperText, { color: colors.textMuted }]}>{helperText}</Text>
       )}
     </View>
   );
@@ -78,15 +71,15 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textSecondary,
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     marginBottom: SPACING.xs,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 2,
   },
@@ -101,11 +94,6 @@ const styles = StyleSheet.create({
   },
   iconRight: {
     paddingRight: SPACING.md,
-  },
-  errorText: {
-    fontFamily: TYPOGRAPHY.fontFamily.body,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    marginTop: SPACING.xs,
   },
   helperText: {
     fontFamily: TYPOGRAPHY.fontFamily.body,

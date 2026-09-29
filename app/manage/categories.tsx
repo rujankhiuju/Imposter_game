@@ -3,15 +3,17 @@ import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../../components/layout/SafeContainer';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { PillButton } from '../../components/ui/PillButton';
 import { InputField } from '../../components/ui/InputField';
-import { NeonColorPicker } from '../../components/ui/NeonColorPicker';
+import { ColorPicker } from '../../components/ui/ColorPicker';
 import { useCategoryStore } from '../../store/categoryStore';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, NEON_PALETTE } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, NEON_PALETTE, SHADOWS } from '../../constants/theme';
 import { Category } from '../../types';
 
 export default function ManageCategoriesScreen() {
-  const { categories, addCategory, updateCategory, deleteCategory, getNeonPalette } = useCategoryStore();
+  const { categories, addCategory, updateCategory, deleteCategory } = useCategoryStore();
+  const { colors } = useTheme();
 
   const [showCreate, setShowCreate] = useState(false);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -53,151 +55,106 @@ export default function ManageCategoriesScreen() {
     ]);
   };
 
-  const customCategories = categories.filter(c => c.isCustom);
-  const builtinCategories = categories.filter(c => !c.isCustom);
+  const customCategories = categories.filter((c) => c.isCustom);
+  const builtinCategories = categories.filter((c) => !c.isCustom);
+
+  const renderCategoryItem = (category: Category) => (
+    <View
+      key={category.id}
+      style={[styles.categoryItem, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+    >
+      <View style={styles.categoryInfo}>
+        <Text style={[styles.categoryName, { color: colors.textPrimary }]}>{category.name}</Text>
+        <Text style={[styles.categoryHint, { color: colors.textSecondary }]}>
+          Hint: “{category.hintPrefix}”
+        </Text>
+        <Text style={[styles.categoryWordCount, { color: colors.textMuted }]}>
+          {category.words.length} words
+        </Text>
+      </View>
+
+      {editingCategory === category.id ? (
+        <EditCategoryForm
+          category={category}
+          onSave={(name, hint, color) => handleUpdate(category.id, name, hint, color)}
+          onCancel={() => setEditingCategory(null)}
+        />
+      ) : (
+        <View style={styles.categoryActions}>
+          <PillButton
+            title="Words"
+            variant="outline"
+            onPress={() => router.push(`/manage/words?category=${category.id}`)}
+            style={styles.smallButton}
+          />
+          {category.isCustom && (
+            <>
+              <PillButton
+                title="Edit"
+                variant="outline"
+                onPress={() => setEditingCategory(category.id)}
+                style={styles.smallButton}
+              />
+              <PillButton
+                title="Delete"
+                variant="danger"
+                onPress={() => handleDelete(category.id)}
+                style={styles.smallButton}
+              />
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeContainer avoidKeyboard={true}>
       <View style={styles.container}>
-        <ScreenHeader title="MANAGE CATEGORIES" neonColor={COLORS.neonViolet} onBack={() => router.back()} showBack />
+        <ScreenHeader title="CATEGORIES" onBack={() => router.back()} showBack />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {showCreate && (
-            <View style={styles.createForm}>
-              <Text style={styles.formTitle}>CREATE NEW CATEGORY</Text>
+            <View style={[styles.createForm, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.formTitle, { color: colors.textMuted }]}>CREATE NEW CATEGORY</Text>
               <InputField
                 label="Category Name"
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
                 placeholder="e.g., Video Games"
-                neonColor={newCategoryColor}
               />
               <InputField
                 label="Hint Prefix"
                 value={newCategoryHint}
                 onChangeText={setNewCategoryHint}
                 placeholder="e.g., It's a game..."
-                neonColor={newCategoryColor}
               />
               <View style={styles.colorPickerSection}>
-                <Text style={styles.colorPickerLabel}>NEON COLOR</Text>
-                <NeonColorPicker
-                  selectedColor={newCategoryColor}
-                  onSelect={setNewCategoryColor}
-                  columns={5}
-                />
+                <Text style={[styles.colorPickerLabel, { color: colors.textMuted }]}>ACCENT COLOR</Text>
+                <ColorPicker selectedColor={newCategoryColor} onSelect={setNewCategoryColor} columns={5} />
               </View>
               <View style={styles.formActions}>
-                <NeonButton
-                  title="Cancel"
-                  variant="ghost"
-                  onPress={() => setShowCreate(false)}
-                  neonColor={COLORS.textMuted}
-                  style={styles.formActionButton}
-                />
-                <NeonButton
-                  title="Create"
-                  variant="primary"
-                  onPress={handleCreate}
-                  neonColor={newCategoryColor}
-                  style={styles.formActionButton}
-                />
+                <PillButton title="Cancel" variant="outline" onPress={() => setShowCreate(false)} style={styles.formActionButton} />
+                <PillButton title="Create" onPress={handleCreate} style={styles.formActionButton} />
               </View>
             </View>
           )}
 
           {!showCreate && (
-            <NeonButton
-              title="+ Create New Category"
-              variant="secondary"
-              onPress={() => setShowCreate(true)}
-              neonColor={COLORS.neonViolet}
-              fullWidth
-              style={styles.createButton}
-            />
+            <PillButton title="+ Create New Category" variant="outline" onPress={() => setShowCreate(true)} fullWidth style={styles.createButton} />
           )}
 
           {builtinCategories.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>BUILT-IN CATEGORIES</Text>
-              <View style={styles.categoryList}>
-                {builtinCategories.map(category => (
-                  <View key={category.id} style={styles.categoryItem}>
-                    <View style={[
-                      styles.categoryColorDot,
-                      { backgroundColor: category.neonColor },
-                    ]} />
-                    <View style={styles.categoryInfo}>
-                      <Text style={styles.categoryName}>{category.name}</Text>
-                      <Text style={styles.categoryHint}>Hint: "{category.hintPrefix}"</Text>
-                      <Text style={styles.categoryWordCount}>
-                        {category.words.length} words
-                      </Text>
-                    </View>
-                    <NeonButton
-                      title="Words"
-                      variant="ghost"
-                      onPress={() => router.push(`/manage/words?category=${category.id}`)}
-                      neonColor={category.neonColor}
-                      style={styles.wordButton}
-                    />
-                  </View>
-                ))}
-              </View>
+              <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>BUILT-IN CATEGORIES</Text>
+              <View style={styles.categoryList}>{builtinCategories.map(renderCategoryItem)}</View>
             </View>
           )}
 
           {customCategories.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>CUSTOM CATEGORIES</Text>
-              <View style={styles.categoryList}>
-                {customCategories.map(category => (
-                  <View key={category.id} style={styles.categoryItem}>
-                    <View style={[
-                      styles.categoryColorDot,
-                      { backgroundColor: category.neonColor },
-                    ]} />
-                    <View style={styles.categoryInfo}>
-                      <Text style={styles.categoryName}>{category.name}</Text>
-                      <Text style={styles.categoryHint}>Hint: "{category.hintPrefix}"</Text>
-                      <Text style={styles.categoryWordCount}>
-                        {category.words.length} words
-                      </Text>
-                    </View>
-                    <View style={styles.categoryActions}>
-                      <NeonButton
-                        title="Words"
-                        variant="ghost"
-                        onPress={() => router.push(`/manage/words?category=${category.id}`)}
-                        neonColor={category.neonColor}
-                        style={styles.wordButton}
-                      />
-                      {editingCategory === category.id ? (
-                        <EditCategoryForm
-                          category={category}
-                          onSave={(name, hint, color) => handleUpdate(category.id, name, hint, color)}
-                          onCancel={() => setEditingCategory(null)}
-                        />
-                      ) : (
-                        <NeonButton
-                          title="Edit"
-                          variant="ghost"
-                          onPress={() => setEditingCategory(category.id)}
-                          neonColor={category.neonColor}
-                          style={styles.editButton}
-                        />
-                      )}
-                      <NeonButton
-                        title="Delete"
-                        variant="danger"
-                        onPress={() => handleDelete(category.id)}
-                        neonColor={COLORS.error}
-                        style={styles.deleteButton}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
+              <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>CUSTOM CATEGORIES</Text>
+              <View style={styles.categoryList}>{customCategories.map(renderCategoryItem)}</View>
             </View>
           )}
         </ScrollView>
@@ -212,48 +169,23 @@ interface EditCategoryFormProps {
   onCancel: () => void;
 }
 
-const EditCategoryForm = React.memo(({ category, onSave, onCancel }: EditCategoryFormProps) => {
+const EditCategoryForm = React.memo(function EditCategoryForm({ category, onSave, onCancel }: EditCategoryFormProps) {
+  const { colors } = useTheme();
   const [name, setName] = useState(category.name);
   const [hint, setHint] = useState(category.hintPrefix);
   const [color, setColor] = useState(category.neonColor);
 
   return (
-    <View style={styles.editForm}>
-      <InputField
-        label="Name"
-        value={name}
-        onChangeText={setName}
-        neonColor={color}
-      />
-      <InputField
-        label="Hint Prefix"
-        value={hint}
-        onChangeText={setHint}
-        neonColor={color}
-      />
+    <View style={[styles.editForm, { borderTopColor: colors.border }]}>
+      <InputField label="Name" value={name} onChangeText={setName} />
+      <InputField label="Hint Prefix" value={hint} onChangeText={setHint} />
       <View style={styles.colorPickerSection}>
-        <Text style={styles.colorPickerLabel}>NEON COLOR</Text>
-        <NeonColorPicker
-          selectedColor={color}
-          onSelect={setColor}
-          columns={5}
-        />
+        <Text style={[styles.colorPickerLabel, { color: colors.textMuted }]}>ACCENT COLOR</Text>
+        <ColorPicker selectedColor={color} onSelect={setColor} columns={5} />
       </View>
       <View style={styles.formActions}>
-        <NeonButton
-          title="Cancel"
-          variant="ghost"
-          onPress={onCancel}
-          neonColor={COLORS.textMuted}
-          style={styles.formActionButton}
-        />
-        <NeonButton
-          title="Save"
-          variant="primary"
-          onPress={() => onSave(name, hint, color)}
-          neonColor={color}
-          style={styles.formActionButton}
-        />
+        <PillButton title="Cancel" variant="outline" onPress={onCancel} style={styles.formActionButton} />
+        <PillButton title="Save" onPress={() => onSave(name, hint, color)} style={styles.formActionButton} />
       </View>
     </View>
   );
@@ -269,29 +201,24 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   createForm: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
     padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: SPACING.md,
   },
   formTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    marginBottom: SPACING.lg,
   },
   colorPickerSection: {
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
+    marginTop: SPACING.sm,
   },
   colorPickerLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: SPACING.sm,
@@ -299,7 +226,7 @@ const styles = StyleSheet.create({
   formActions: {
     flexDirection: 'row',
     gap: SPACING.md,
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
   formActionButton: {
     flex: 1,
@@ -312,8 +239,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: SPACING.md,
@@ -322,60 +248,42 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
     gap: SPACING.md,
   },
-  categoryColorDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-  },
   categoryInfo: {
-    flex: 1,
+    gap: 2,
   },
   categoryName: {
     fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textPrimary,
   },
   categoryHint: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
   categoryWordCount: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
     marginTop: SPACING.xs,
   },
   categoryActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: SPACING.sm,
   },
-  wordButton: {
+  smallButton: {
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  editButton: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  deleteButton: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    minHeight: 40,
   },
   editForm: {
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    gap: SPACING.md,
   },
 });

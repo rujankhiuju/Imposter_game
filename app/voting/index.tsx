@@ -1,52 +1,55 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../../components/layout/SafeContainer';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { NeonButton } from '../../components/ui/NeonButton';
+import { PillButton } from '../../components/ui/PillButton';
 import { VoteButton } from '../../components/ui/VoteButton';
 import { useGameStore } from '../../store/gameStore';
+import { useGameFlow } from '../../hooks/useGameFlow';
+import { useTheme } from '../../hooks/useTheme';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import { SPACING, TYPOGRAPHY } from '../../constants/theme';
 
+/**
+ * Sequential pass-the-phone voting: one voter at a time picks someone
+ * else. Vote counts stay hidden until the staggered reveal.
+ */
 export default function VotingScreen() {
-  const { players, settings, phase, setPhase } = useGameStore();
+  const { players } = useGameStore();
+  const { finishVoting } = useGameFlow();
+  const { colors } = useTheme();
   const { trigger: haptic } = useHaptics();
   const { play } = useSound();
 
-  const [voted, setVoted] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [revealIndex, setRevealIndex] = useState(0);
+  const lastFinishPressRef = useRef(0);
 
-  const alivePlayers = players.filter(p => !p.hasVoted || showResults);
-  const allVoted = players.every(p => p.hasVoted);
-
-  useEffect(() => {
-    if (allVoted && !voted) {
-      setVoted(true);
-    }
-  }, [allVoted, voted]);
+  const currentVoter = players.find((p) => !p.hasVoted);
+  const allVoted = !currentVoter;
+  const votedCount = players.filter((p) => p.hasVoted).length;
 
   useEffect(() => {
-    if (showResults) {
-      const timer = setInterval(() => {
-        setRevealIndex((prev) => {
-          if (prev >= players.length - 1) {
-            clearInterval(timer);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 600);
-      return () => clearInterval(timer);
-    }
+    if (!showResults) return;
+
+    const timer = setInterval(() => {
+      setRevealIndex((prev) => {
+        if (prev >= players.length - 1) {
+          clearInterval(timer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 600);
+    return () => clearInterval(timer);
   }, [showResults, players.length]);
 
-  const handleVote = (voterId: number, targetId: number) => {
-    if (voted || showResults) return;
-    
-    useGameStore.getState().setVote(voterId, targetId);
+  const handleVote = (targetId: number) => {
+    if (!currentVoter || showResults || targetId === currentVoter.id) return;
+
+    useGameStore.getState().setVote(currentVoter.id, targetId);
     useGameStore.getState().incrementVotes(targetId);
     haptic('light');
     play('voteSubmit');
@@ -60,61 +63,74 @@ export default function VotingScreen() {
   };
 
   const handleFinish = () => {
+    // Throttle double taps; only score the round once (re-opening the
+    // results screen via back navigation must not score again).
+    const now = Date.now();
+    if (now - lastFinishPressRef.current < 800) return;
+    lastFinishPressRef.current = now;
+
+    if (useGameStore.getState().phase !== 'results') {
+      finishVoting();
+    }
     router.push('/results');
   };
 
-  const sortedPlayers = [...players].sort((a, b) => b.votesReceived - a.votesReceived);
+  const revealOrder = [...players].sort((a, b) => b.votesReceived - a.votesReceived);
+  const displayPlayers = showResults ? revealOrder : players;
 
   return (
     <SafeContainer avoidKeyboard={false}>
       <View style={styles.container}>
-        <ScreenHeader 
-          title="VOTING" 
-          neonColor={COLORS.neonPink}
-        />
-        
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.playersList}>
-            {sortedPlayers.map((player, index) => (
-              <VoteButton
-                key={player.id}
-                playerName={player.name}
-                isSelected={false}
-                voteCount={player.votesReceived}
-                onPress={() => handleVote(player.id, player.id)}
-                disabled={voted || showResults}
-                isRevealing={showResults && revealIndex >= index}
-                revealRole={showResults && revealIndex >= index ? player.role : undefined}
-                neonColor={COLORS.neonPink}
-              />
-            ))}
-          </View>
+        <ScreenHeader title="VOTING" />
 
-          {!showResults && !allVoted && (
-            <Text style={styles.instruction}>
-              Tap a player to vote for them
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {!showResults && currentVoter && (
+            <Text style={[styles.instruction, { color: colors.textSecondary }]}>
+              Pass the phone to{' '}
+              <Text style={[styles.voterName, { color: colors.textPrimary }]}>{currentVoter.name}</Text>
+              {' — '}tap who they think the Imposter is ({votedCount}/{players.length} voted).
+            </Text>
+          )}
+          {!showResults && allVoted && (
+            <Text style={[styles.instruction, { color: colors.textSecondary }]}>
+              All votes are in. Reveal to see who got caught!
+            </Text>
+          )}
+          {showResults && (
+            <Text style={[styles.instruction, { color: colors.textSecondary }]}>
+              The votes are in…
             </Text>
           )}
 
+          <View style={styles.playersList}>
+            {displayPlayers.map((player, index) => {
+              const isRowRevealing = showResults && revealIndex >= index;
+              return (
+                <VoteButton
+                  key={player.id}
+                  playerName={player.name}
+                  isSelected={false}
+                  voteCount={isRowRevealing ? player.votesReceived : 0}
+                  onPress={() => handleVote(player.id)}
+                  disabled={showResults || player.id === currentVoter?.id}
+                  isRevealing={isRowRevealing}
+                  revealRole={isRowRevealing ? player.role : undefined}
+                />
+              );
+            })}
+          </View>
+
           {!showResults && allVoted && (
-            <NeonButton
-              title="Reveal Votes"
-              variant="primary"
-              onPress={handleReveal}
-              neonColor={COLORS.neonPink}
-              fullWidth
-              style={styles.revealButton}
-            />
+            <PillButton title="Reveal Votes" onPress={handleReveal} fullWidth style={styles.actionButton} />
           )}
 
           {showResults && (
-            <NeonButton
-              title="See Results"
-              variant="primary"
+            <PillButton
+              title="See Results  ▸▸"
+              variant="solid"
               onPress={handleFinish}
-              neonColor={COLORS.neonPink}
               fullWidth
-              style={styles.revealButton}
+              style={styles.actionButton}
             />
           )}
         </ScrollView>
@@ -133,18 +149,21 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   playersList: {
-    marginBottom: SPACING.xl,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
   },
   instruction: {
     textAlign: 'center',
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textMuted,
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.lg,
+    lineHeight: TYPOGRAPHY.fontSize.md * TYPOGRAPHY.lineHeight.relaxed,
   },
-  revealButton: {
-    marginTop: SPACING.lg,
+  voterName: {
+    fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
+  },
+  actionButton: {
     maxWidth: 320,
     alignSelf: 'center',
   },

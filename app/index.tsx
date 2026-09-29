@@ -1,29 +1,34 @@
-import React from 'react';
-import { View, ScrollView, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, Text, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../components/layout/SafeContainer';
-import { ScreenHeader } from '../components/layout/ScreenHeader';
-import { NeonButton } from '../components/ui/NeonButton';
-import { InputField } from '../components/ui/InputField';
-import { NeonColorPicker } from '../components/ui/NeonColorPicker';
+import { PillButton } from '../components/ui/PillButton';
+import { ListRow } from '../components/ui/ListRow';
+import { Chip } from '../components/ui/Chip';
 import { useGameStore } from '../store/gameStore';
 import { useCategoryStore } from '../store/categoryStore';
-import { useSettingsStore } from '../store/settingsStore';
 import { useGameFlow } from '../hooks/useGameFlow';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../constants/theme';
-import { LAYOUT } from '../constants/dimensions';
+import { useTheme } from '../hooks/useTheme';
+import { useHaptics } from '../hooks/useHaptics';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../constants/theme';
 import { GAME_CONSTANTS } from '../constants/game';
 
-export default function SetupScreen() {
-  const {
-    settings,
-    setSettings,
-    resetSession,
-  } = useGameStore();
+const TIMER_PRESETS = [30, 60, 90, 120, 180, 300];
 
-  const { categories, getNeonPalette } = useCategoryStore();
-  const { firstLaunch } = useSettingsStore();
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+export default function HomeScreen() {
+  const { colors } = useTheme();
+  const { settings, setSettings, players } = useGameStore();
+  const { categories } = useCategoryStore();
   const { startGame } = useGameFlow();
+  const { trigger: haptic } = useHaptics();
+
+  const [showCategories, setShowCategories] = useState(false);
 
   const handleStartGame = () => {
     const result = startGame();
@@ -34,197 +39,150 @@ export default function SetupScreen() {
     }
   };
 
-  const handlePlayerCountChange = (value: string) => {
-    const count = parseInt(value, 10) || GAME_CONSTANTS.MIN_PLAYERS;
-    const clamped = Math.max(GAME_CONSTANTS.MIN_PLAYERS, Math.min(GAME_CONSTANTS.MAX_PLAYERS, count));
-    setSettings({ playerCount: clamped });
+  const cycleImposters = () => {
+    haptic('light');
+    const max = Math.min(GAME_CONSTANTS.MAX_IMPOSTERS, settings.playerCount - 1);
+    const next = settings.imposterCount >= max ? GAME_CONSTANTS.MIN_IMPOSTERS : settings.imposterCount + 1;
+    setSettings({ imposterCount: next });
   };
 
-  const handleImposterCountChange = (value: string) => {
-    const count = parseInt(value, 10) || GAME_CONSTANTS.MIN_IMPOSTERS;
-    const maxImposters = Math.min(GAME_CONSTANTS.MAX_IMPOSTERS, settings.playerCount - 1);
-    const clamped = Math.max(GAME_CONSTANTS.MIN_IMPOSTERS, Math.min(maxImposters, count));
-    setSettings({ imposterCount: clamped });
+  const cycleTimer = () => {
+    haptic('light');
+    const idx = TIMER_PRESETS.indexOf(settings.roundTimerSeconds);
+    const next = TIMER_PRESETS[(idx + 1) % TIMER_PRESETS.length];
+    setSettings({ roundTimerSeconds: next });
   };
 
-  const handleTimerChange = (value: string) => {
-    const seconds = parseInt(value, 10) || GAME_CONSTANTS.MIN_TIMER_SECONDS;
-    const clamped = Math.max(GAME_CONSTANTS.MIN_TIMER_SECONDS, Math.min(GAME_CONSTANTS.MAX_TIMER_SECONDS, seconds));
-    setSettings({ roundTimerSeconds: clamped });
-  };
-
-  const selectedCategory = categories.find(c => c.id === settings.categoryId) || categories[0];
+  const activePlayers = players.slice(0, settings.playerCount);
+  const selectedCategory = categories.find((c) => c.id === settings.categoryId) ?? categories[0];
 
   return (
-    <SafeContainer avoidKeyboard={true}>
-      <View style={styles.scrollContainer}>
-        <ScreenHeader title="IMPOSTER" neonColor={selectedCategory.neonColor} />
-        
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>GAME SETUP</Text>
-            
-            <View style={styles.inputRow}>
-              <InputField
-                label="Players"
-                value={settings.playerCount.toString()}
-                onChangeText={handlePlayerCountChange}
-                keyboardType="numeric"
-                neonColor={selectedCategory.neonColor}
-                placeholder={`${GAME_CONSTANTS.MIN_PLAYERS}–${GAME_CONSTANTS.MAX_PLAYERS}`}
-                style={styles.numberInput}
-              />
-              <InputField
-                label="Imposters"
-                value={settings.imposterCount.toString()}
-                onChangeText={handleImposterCountChange}
-                keyboardType="numeric"
-                neonColor={selectedCategory.neonColor}
-                placeholder={`1–${Math.min(GAME_CONSTANTS.MAX_IMPOSTERS, settings.playerCount - 1)}`}
-                style={styles.numberInput}
-              />
-            </View>
+    <SafeContainer avoidKeyboard={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.logoBlock}>
+          <Text style={[styles.logo, { color: colors.textPrimary }]}>IMPOSTER</Text>
+          <View style={[styles.logoAccent, { backgroundColor: colors.primary }]} />
+          <Text style={[styles.tagline, { color: colors.textSecondary }]}>WHO’S HIDING?</Text>
+        </View>
 
-            <InputField
-              label="Discussion Timer (seconds)"
-              value={settings.roundTimerSeconds.toString()}
-              onChangeText={handleTimerChange}
-              keyboardType="numeric"
-              neonColor={selectedCategory.neonColor}
-              placeholder={`${GAME_CONSTANTS.MIN_TIMER_SECONDS}–${GAME_CONSTANTS.MAX_TIMER_SECONDS}`}
-            />
+        <ListRow
+          emoji="👇"
+          label="Players"
+          onPress={() => router.push('/setup/player-names')}
+        >
+          <View style={styles.chipRow}>
+            {activePlayers.map((p) => (
+              <Chip key={p.id} label={p.name} small />
+            ))}
           </View>
+        </ListRow>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>CATEGORY</Text>
-            <View style={styles.categoryGrid}>
-              {categories.map((category) => (
-                <Pressable
-                  key={category.id}
-                  onPress={() => setSettings({ categoryId: category.id })}
-                  style={[
-                    styles.categoryCard,
-                    settings.categoryId === category.id && styles.categoryCardSelected,
-                    { borderColor: category.neonColor },
-                  ]}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <View style={[styles.categoryIcon, { backgroundColor: category.neonColor }]} />
-                  <Text style={[
-                    styles.categoryName,
-                    settings.categoryId === category.id && { color: category.neonColor },
-                  ]}>
-                    {category.name}
-                  </Text>
-                  {category.isCustom && (
-                    <Text style={styles.customBadge}>CUSTOM</Text>
-                  )}
-                </Pressable>
+        <ListRow
+          emoji="🏷️"
+          label="Categories"
+          value={selectedCategory?.name ?? 'None'}
+          onPress={() => setShowCategories((v) => !v)}
+          rightContent={
+            <Chip label={showCategories ? 'Done' : 'Change'} small selected={showCategories} />
+          }
+        />
+        {showCategories && (
+          <View style={[styles.categoryPanel, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.chipRow}>
+              {categories.map((c) => (
+                <Chip
+                  key={c.id}
+                  label={c.name}
+                  selected={settings.categoryId === c.id}
+                  onPress={() => setSettings({ categoryId: c.id })}
+                />
               ))}
             </View>
-
-            <NeonButton
+            <PillButton
               title="Manage Categories"
-              variant="secondary"
+              variant="outline"
               onPress={() => router.push('/manage/categories')}
-              neonColor={selectedCategory.neonColor}
-              style={styles.manageButton}
+              style={styles.panelButton}
             />
           </View>
+        )}
 
-          <View style={styles.section}>
-            <NeonButton
-              title={firstLaunch ? "Start Party Game" : "New Game"}
-              variant="primary"
-              onPress={handleStartGame}
-              neonColor={selectedCategory.neonColor}
-              fullWidth
-              style={styles.startButton}
-            />
-          </View>
-        </ScrollView>
+        <ListRow
+          emoji="🕵️"
+          label="Imposters"
+          value={`${settings.imposterCount} Imposter${settings.imposterCount > 1 ? 's' : ''}`}
+          onPress={cycleImposters}
+        />
 
-        <View style={styles.footer}>
-          <NeonButton
-            title="Settings"
-            variant="ghost"
-            onPress={() => router.push('/setup/settings')}
-            neonColor={selectedCategory.neonColor}
-            style={styles.settingsButton}
-          />
-        </View>
+        <ListRow
+          emoji="⏰"
+          label="Time Limit"
+          value={formatTime(settings.roundTimerSeconds)}
+          onPress={cycleTimer}
+        />
+
+        <PillButton
+          title="▶  Start Game"
+          onPress={handleStartGame}
+          fullWidth
+          style={styles.startButton}
+        />
+      </ScrollView>
+
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <PillButton
+          title="⚙  Settings"
+          variant="outline"
+          onPress={() => router.push('/setup/settings')}
+          fullWidth
+        />
       </View>
     </SafeContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flex: 1,
-  },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
     paddingBottom: SPACING.xxl,
     flexGrow: 1,
   },
-  section: {
+  logoBlock: {
+    alignItems: 'center',
     marginBottom: SPACING.xl,
   },
-  sectionTitle: {
+  logo: {
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: 44,
+    letterSpacing: 1,
+  },
+  logoAccent: {
+    width: 64,
+    height: 8,
+    borderRadius: RADIUS.full,
+    marginTop: SPACING.sm,
+  },
+  tagline: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: 3,
+    marginTop: SPACING.sm,
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: SPACING.md,
   },
-  inputRow: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  numberInput: {
-    flex: 1,
-  },
-  categoryGrid: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.md,
-    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
   },
-  categoryCard: {
-    width: (LAYOUT.screenWidth - SPACING.lg * 2 - SPACING.md * 4) / 5,
-    aspectRatio: 1,
+  categoryPanel: {
     borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1,
     padding: SPACING.md,
+    marginBottom: SPACING.md,
   },
-  categoryCardSelected: {
-    borderWidth: 3,
-    backgroundColor: COLORS.surfaceElevated,
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.full,
-    marginBottom: SPACING.sm,
-  },
-  categoryName: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  customBadge: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textMuted,
-    marginTop: SPACING.xs,
-  },
-  manageButton: {
+  panelButton: {
     marginTop: SPACING.md,
   },
   startButton: {
@@ -235,9 +193,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  settingsButton: {
-    width: '100%',
   },
 });

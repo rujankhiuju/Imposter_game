@@ -1,27 +1,91 @@
-export const COLORS = {
-  background: '#0A0A0F',
-  surface: '#12121A',
-  surfaceElevated: '#1A1A24',
-  border: '#2A2A3A',
-  borderLight: '#3A3A4A',
-  textPrimary: '#F5F5F5',
-  textSecondary: '#A0A0B0',
-  textMuted: '#6A6A7A',
-  textOnNeon: '#0A0A0F',
-  neonPink: '#FF006E',
-  neonAmber: '#FFBE0B',
-  neonViolet: '#8338EC',
-  neonMint: '#06D6A0',
-  neonCyan: '#118AB2',
-  neonRed: '#FF6B6B',
-  neonTeal: '#4ECDC4',
-  neonGold: '#FFD166',
-  neonPurple: '#C44DFF',
-  neonEmerald: '#00D4AA',
-  error: '#FF4444',
-  success: '#00C853',
-  warning: '#FFB300',
+// ---------------------------------------------------------------------------
+// Design tokens — Imposter Who? inspired: light, playful, flat, emoji-driven.
+// Two palettes (light is default) share one shape; useTheme() picks one.
+// ---------------------------------------------------------------------------
+
+export interface ThemeColors {
+  background: string;
+  surface: string;
+  surfaceElevated: string;
+  border: string;
+  borderLight: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  /** Lime accent used for primary CTAs and highlights. */
+  primary: string;
+  /** Text/icon color placed on top of {primary}. */
+  primaryText: string;
+  primaryPressed: string;
+  /** Solid pill button (black in light theme, white in dark theme). */
+  pillBg: string;
+  pillText: string;
+  /** Rounded name chips / soft fills. */
+  chipBg: string;
+  white: string;
+  black: string;
+  danger: string;
+  success: string;
+  warning: string;
+  /** Solid reveal card backgrounds (stay pastel in both themes). */
+  revealCivilian: string;
+  revealImposter: string;
+  /** Text color used on top of reveal cards. */
+  onReveal: string;
+}
+
+export const LIGHT_COLORS: ThemeColors = {
+  background: '#F2F2F4',
+  surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
+  border: '#E6E6EC',
+  borderLight: '#DDDDE4',
+  textPrimary: '#111114',
+  textSecondary: '#55555F',
+  textMuted: '#8E8E99',
+  primary: '#C6F73D',
+  primaryText: '#111114',
+  primaryPressed: '#B2E42E',
+  pillBg: '#111114',
+  pillText: '#FFFFFF',
+  chipBg: '#ECECF1',
+  white: '#FFFFFF',
+  black: '#111114',
+  danger: '#E53935',
+  success: '#16A34A',
+  warning: '#F59E0B',
+  revealCivilian: '#6FE9DE',
+  revealImposter: '#F9A8C4',
+  onReveal: '#111114',
 };
+
+export const DARK_COLORS: ThemeColors = {
+  background: '#0E0E13',
+  surface: '#1A1A22',
+  surfaceElevated: '#242430',
+  border: '#2E2E3A',
+  borderLight: '#3A3A48',
+  textPrimary: '#F5F5F7',
+  textSecondary: '#A6A6B5',
+  textMuted: '#6E6E7E',
+  primary: '#C6F73D',
+  primaryText: '#111114',
+  primaryPressed: '#B2E42E',
+  pillBg: '#FFFFFF',
+  pillText: '#111114',
+  chipBg: '#26262F',
+  white: '#FFFFFF',
+  black: '#111114',
+  danger: '#FF6B6B',
+  success: '#4ADE80',
+  warning: '#FBBF24',
+  revealCivilian: '#6FE9DE',
+  revealImposter: '#F9A8C4',
+  onReveal: '#111114',
+};
+
+/** @deprecated Legacy alias kept so unmigrated code still typechecks. */
+export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
   xs: 4,
@@ -42,6 +106,8 @@ export const RADIUS = {
 
 export const TYPOGRAPHY = {
   fontFamily: {
+    /** Heavy uppercase display font (logo, big titles). */
+    display: 'ArchivoBlack_400Regular',
     heading: 'SpaceGrotesk_700Bold',
     headingMedium: 'SpaceGrotesk_600SemiBold',
     body: 'System',
@@ -66,17 +132,17 @@ export const TYPOGRAPHY = {
 };
 
 export const SHADOWS = {
-  neon: (color: string) => ({
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  }),
   card: {
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  raised: {
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 6,
   },
@@ -96,6 +162,7 @@ export const ANIMATION = {
   stagger: 80,
 };
 
+/** Accent colors offered when creating a custom category. */
 export const NEON_PALETTE = [
   '#FF006E',
   '#FFBE0B',
@@ -127,6 +194,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'movies',
     name: 'Movies',
+    emoji: '🎬',
     neonColor: '#FF006E',
     hintPrefix: "It's a film...",
     words: [
@@ -141,6 +209,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'food',
     name: 'Food',
+    emoji: '🍔',
     neonColor: '#FFBE0B',
     hintPrefix: "It's something you eat...",
     words: [
@@ -155,6 +224,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'celebrities',
     name: 'Celebrities',
+    emoji: '🌟',
     neonColor: '#8338EC',
     hintPrefix: "They're famous for...",
     words: [
@@ -168,6 +238,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'animals',
     name: 'Animals',
+    emoji: '🐾',
     neonColor: '#06D6A0',
     hintPrefix: "It's a creature...",
     words: [
@@ -181,6 +252,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'places',
     name: 'Places',
+    emoji: '🗺️',
     neonColor: '#118AB2',
     hintPrefix: "It's a location...",
     words: [
@@ -194,6 +266,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'books',
     name: 'Books',
+    emoji: '📚',
     neonColor: '#FF6B6B',
     hintPrefix: "It's a book...",
     words: [
@@ -207,6 +280,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'brands',
     name: 'Brands',
+    emoji: '🏷️',
     neonColor: '#4ECDC4',
     hintPrefix: "It's a brand...",
     words: [
@@ -220,6 +294,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'sports',
     name: 'Sports',
+    emoji: '⚽',
     neonColor: '#FFD166',
     hintPrefix: "It's a sport...",
     words: [
@@ -233,6 +308,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'music',
     name: 'Music',
+    emoji: '🎵',
     neonColor: '#C44DFF',
     hintPrefix: "It's music-related...",
     words: [
@@ -246,6 +322,7 @@ export const BUILTIN_CATEGORIES = [
   {
     id: 'historical',
     name: 'Historical Figures',
+    emoji: '🏛️',
     neonColor: '#00D4AA',
     hintPrefix: "They made history...",
     words: [

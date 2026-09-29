@@ -1,18 +1,16 @@
 import { useGameStore } from '../store/gameStore';
-import { useCategoryStore } from '../store/categoryStore';
 import { useScoreStore } from '../store/scoreStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWordPicker } from './useWordPicker';
 import { useHaptics } from './useHaptics';
 import { useSound } from './useSound';
-import { calculateRoundScores, determineWinner } from '../utils/scoring';
+import { determineWinner } from '../utils/scoring';
 import { validateSettings } from '../utils/validation';
 
 export const useGameFlow = () => {
   const {
     settings,
     players,
-    phase,
     round,
     currentPlayerIndex,
     setPhase,
@@ -29,7 +27,7 @@ export const useGameFlow = () => {
   const { pickWord, getHintForImposter } = useWordPicker();
   const { trigger: haptic } = useHaptics();
   const { play: playSound } = useSound();
-  const { sessionScores, addSessionScore, resetSessionScores, saveGameToHistory } = useScoreStore();
+  const { sessionScores, resetSessionScores, saveGameToHistory } = useScoreStore();
   const { firstLaunch, setFirstLaunch } = useSettingsStore();
 
   const startGame = (): { valid: boolean; errors: string[] } => {
@@ -101,7 +99,7 @@ export const useGameFlow = () => {
     const winner = determineWinner(useGameStore.getState().players);
     
     const updatedPlayers = useGameStore.getState().players;
-    const scores: Array<{ playerId: number; playerName: string; totalScore: number; roundsPlayed: number }> = 
+    const scores: { playerId: number; playerName: string; totalScore: number; roundsPlayed: number }[] =
       updatedPlayers.map((p) => ({
         playerId: p.id,
         playerName: p.name,

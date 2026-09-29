@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import Animated, { useSharedValue, withTiming, withSpring, useAnimatedProps } from 'react-native-reanimated';
-import { COLORS, SPACING, TYPOGRAPHY, TIMER_RING } from '../../constants/theme';
+import Animated, { useSharedValue, withTiming, useAnimatedProps } from 'react-native-reanimated';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, TYPOGRAPHY, TIMER_RING } from '../../constants/theme';
 
 interface TimerRingProps {
   duration: number;
@@ -11,11 +12,15 @@ interface TimerRingProps {
   onComplete?: () => void;
   size?: number;
   strokeWidth?: number;
-  color?: string;
-  warningColor?: string;
   warningThreshold?: number;
 }
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+/**
+ * Circular countdown ring: neutral track, lime fill that turns red
+ * in the final {warningThreshold} seconds.
+ */
 export const TimerRing: React.FC<TimerRingProps> = ({
   duration,
   progress,
@@ -23,33 +28,31 @@ export const TimerRing: React.FC<TimerRingProps> = ({
   onComplete,
   size = TIMER_RING.size,
   strokeWidth = TIMER_RING.strokeWidth,
-  color = COLORS.neonCyan,
-  warningColor = COLORS.neonPink,
   warningThreshold = 10,
 }) => {
+  const { colors } = useTheme();
+
   const remaining = duration * (1 - progress);
   const isWarning = remaining <= warningThreshold && remaining > 0;
 
   const animatedProgress = useSharedValue(progress);
-  const animatedColor = useSharedValue(color);
+  const animatedColor = useSharedValue(colors.primary);
 
   React.useEffect(() => {
     animatedProgress.value = withTiming(progress, { duration: isPaused ? 0 : 100 });
-  }, [progress, isPaused]);
+  }, [progress, isPaused, animatedProgress]);
 
   React.useEffect(() => {
-    if (isWarning) {
-      animatedColor.value = withSpring(warningColor, { damping: 10, stiffness: 100 });
-    } else {
-      animatedColor.value = withSpring(color, { damping: 10, stiffness: 100 });
-    }
-  }, [isWarning, color, warningColor]);
+    animatedColor.value = withTiming(
+      isWarning ? colors.danger : colors.primary,
+      { duration: 300 }
+    );
+  }, [isWarning, colors.primary, colors.danger, animatedColor]);
 
   const circumference = 2 * Math.PI * (size / 2 - strokeWidth / 2);
-  const offset = circumference * (1 - animatedProgress.value);
 
   const circleProps = useAnimatedProps(() => ({
-    strokeDashoffset: offset,
+    strokeDashoffset: circumference * (1 - animatedProgress.value),
     stroke: animatedColor.value,
   }));
 
@@ -66,7 +69,7 @@ export const TimerRing: React.FC<TimerRingProps> = ({
           cx={size / 2}
           cy={size / 2}
           r={size / 2 - strokeWidth / 2}
-          stroke={COLORS.border}
+          stroke={colors.borderLight}
           strokeWidth={strokeWidth}
           fill="transparent"
         />
@@ -76,29 +79,27 @@ export const TimerRing: React.FC<TimerRingProps> = ({
           r={size / 2 - strokeWidth / 2}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
+          strokeLinecap="round"
           animatedProps={circleProps}
         />
       </Svg>
       <View style={styles.timeContainer}>
-        <Text style={[
-          styles.timeText,
-          { fontSize: size * 0.15 },
-          isWarning && styles.warningText
-        ]}>
+        <Text
+          style={[
+            styles.timeText,
+            { fontSize: size * 0.18, color: colors.textPrimary },
+            isWarning && { color: colors.danger },
+          ]}
+        >
           {formatTime(remaining)}
         </Text>
-        <Text style={[
-          styles.labelText,
-          { fontSize: size * 0.05 }
-        ]}>
+        <Text style={[styles.labelText, { fontSize: size * 0.05, color: colors.textSecondary }]}>
           {isPaused ? 'PAUSED' : 'DISCUSSION'}
         </Text>
       </View>
     </View>
   );
 };
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const styles = StyleSheet.create({
   container: {
@@ -111,16 +112,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeText: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    color: COLORS.textPrimary,
-    lineHeight: 1.1,
-  },
-  warningText: {
-    color: COLORS.neonPink,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    lineHeight: undefined,
   },
   labelText: {
-    fontFamily: TYPOGRAPHY.fontFamily.body,
-    color: COLORS.textSecondary,
-    marginTop: 4,
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    marginTop: SPACING.xs,
+    letterSpacing: 2,
   },
 });

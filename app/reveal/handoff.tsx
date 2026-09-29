@@ -1,50 +1,24 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import Animated, { useSharedValue, withSpring, withDelay, withTiming, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeContainer } from '../../components/layout/SafeContainer';
+import { PillButton } from '../../components/ui/PillButton';
 import { useGameStore } from '../../store/gameStore';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 
+/**
+ * "Pass the phone to …" interstitial before each player's reveal card.
+ * The next player taps the pill when they're holding the phone.
+ */
 export default function HandoffScreen() {
   const { next } = useLocalSearchParams<{ next: string }>();
   const nextIndex = parseInt(next || '0', 10);
+  const { colors } = useTheme();
 
   const { players } = useGameStore();
   const nextPlayer = players[nextIndex];
-
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.8);
-  const translateY = useSharedValue(50);
-  const pulseScale = useSharedValue(1);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
-  }));
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
-
-  useEffect(() => {
-    opacity.value = withDelay(100, withSpring(1, { damping: 15, stiffness: 100 }));
-    scale.value = withDelay(100, withSpring(1, { damping: 15, stiffness: 100 }));
-    translateY.value = withDelay(100, withSpring(0, { damping: 15, stiffness: 100 }));
-
-    pulseScale.value = withSpring(1.1, { damping: 10, stiffness: 80 }, () => {
-      pulseScale.value = withSpring(1, { damping: 10, stiffness: 80 });
-    });
-
-    const timer = setTimeout(() => {
-      router.push(`/reveal/card?player=${nextIndex}`);
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [nextIndex]);
 
   if (!nextPlayer) {
     return null;
@@ -52,25 +26,29 @@ export default function HandoffScreen() {
 
   return (
     <SafeContainer avoidKeyboard={false}>
-      <Animated.View style={[styles.container, containerStyle]}>
-        <View style={styles.content}>
-          <Animated.View style={[styles.iconContainer, pulseStyle]}>
-            <View style={[styles.icon, { backgroundColor: COLORS.neonCyan }]} />
-          </Animated.View>
-          
-          <Text style={styles.title}>PASS TO</Text>
-          
-          <Text style={styles.playerName}>{nextPlayer.name}</Text>
-          
-          <Text style={styles.subtitle}>Player {nextIndex + 1} of {players.length}</Text>
-          
-          <View style={styles.instruction}>
-            <Text style={styles.instructionText}>
-              Hand the phone to {nextPlayer.name} and tap their card to reveal
+      <View style={styles.container}>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.content}>
+          <Text style={[styles.passLabel, { color: colors.textSecondary }]}>PASS THE PHONE TO</Text>
+          <View style={[styles.nameCard, SHADOWS.raised, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.emoji, { backgroundColor: colors.primary }]}>🤝</Text>
+            <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {nextPlayer.name}
+            </Text>
+            <Text style={[styles.playerMeta, { color: colors.textMuted }]}>
+              Player {nextIndex + 1} of {players.length}
             </Text>
           </View>
-        </View>
-      </Animated.View>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>\n            No peeking! Their card is secret.
+          </Text>
+        </Animated.View>
+
+        <PillButton
+          title={`I'm ${nextPlayer.name} — Continue`}
+          variant="solid"
+          onPress={() => router.push(`/reveal/card?player=${nextIndex}`)}
+          fullWidth
+        />
+      </View>
     </SafeContainer>
   );
 }
@@ -78,55 +56,50 @@ export default function HandoffScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: SPACING.lg,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
+    gap: SPACING.xl,
   },
   content: {
     alignItems: 'center',
-    width: '100%',
+    gap: SPACING.lg,
   },
-  iconContainer: {
-    marginBottom: SPACING.xl,
-  },
-  icon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: COLORS.neonCyan,
-  },
-  title: {
+  passLabel: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    letterSpacing: 3,
     textTransform: 'uppercase',
-    letterSpacing: 4,
-    marginBottom: SPACING.md,
+  },
+  nameCard: {
+    width: '100%',
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  emoji: {
+    fontSize: 40,
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
     textAlign: 'center',
+    lineHeight: 76,
   },
   playerName: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xxxl,
-    color: COLORS.neonCyan,
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xxl,
     textAlign: 'center',
-    marginBottom: SPACING.sm,
   },
-  subtitle: {
-    fontFamily: TYPOGRAPHY.fontFamily.bodyMedium,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: SPACING.xl,
-  },
-  instruction: {
-    paddingHorizontal: SPACING.lg,
-  },
-  instructionText: {
+  playerMeta: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+  },
+  hint: {
+    fontFamily: TYPOGRAPHY.fontFamily.body,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.fontSize.md * TYPOGRAPHY.lineHeight.relaxed,
   },
 });
