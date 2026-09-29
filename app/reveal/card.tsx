@@ -18,31 +18,36 @@ const HOLD_MS = 300;
  */
 export default function RevealCardScreen() {
   const { colors } = useTheme();
-  const { players, currentPlayerIndex, categoryHint, secretWord } = useGameStore();
+  const { players, currentPlayerIndex } = useGameStore();
   const { beginReveal, proceedToNextPlayer } = useGameFlow();
 
   const params = useLocalSearchParams<{ player?: string }>();
   const playerIndex = params.player !== undefined ? Number(params.player) : Number(currentPlayerIndex);
   const currentPlayer = players[playerIndex];
 
-  const [revealData, setRevealData] = useState<{
+  const [reveal, setReveal] = useState<{
+    forIndex: number;
     word: string;
     hint: string;
     isImposter: boolean;
   } | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [hasSeen, setHasSeen] = useState(false);
   const [holdTimer, setHoldTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  const isImposter = revealData?.isImposter ?? currentPlayer?.role === 'imposter';
+  // Only trust cached reveal data for the player it was fetched for —
+  // back navigation can land on this screen with a different index.
+  const activeReveal = reveal?.forIndex === playerIndex ? reveal : null;
+  const hasSeen = activeReveal !== null;
+  const showingReveal = revealed && activeReveal !== null;
+  // Role always comes from the player this card is showing.
+  const isImposter = currentPlayer?.role === 'imposter';
 
   const startHold = () => {
     if (revealed) return;
     const timer = setTimeout(() => {
-      const data = revealData ?? beginReveal();
-      setRevealData(data);
+      const data = activeReveal ?? { forIndex: playerIndex, ...beginReveal() };
+      setReveal(data);
       setRevealed(true);
-      setHasSeen(true);
     }, HOLD_MS);
     setHoldTimer(timer);
   };
@@ -68,10 +73,15 @@ export default function RevealCardScreen() {
     return null;
   }
 
-  const cardColor = isImposter ? colors.revealImposter : colors.revealCivilian;
-  // Show live store values once revealed (beginReveal keeps the store in sync).
-  const shownWord = revealed ? (revealData?.word ?? secretWord) : '';
-  const shownHint = revealed ? (revealData?.hint ?? categoryHint) : '';
+  // Neutral until revealed — the card color must not leak the role.
+  const cardColor = showingReveal
+    ? isImposter
+      ? colors.revealImposter
+      : colors.revealCivilian
+    : colors.surface;
+  // Civilians get the shared round word; imposters never see it.
+  const shownWord = showingReveal && !isImposter ? activeReveal.word : '';
+  const shownHint = showingReveal ? activeReveal.hint : '';
 
   return (
     <SafeContainer avoidKeyboard={false}>
@@ -95,6 +105,8 @@ export default function RevealCardScreen() {
             SHADOWS.raised,
             {
               backgroundColor: cardColor,
+              borderWidth: showingReveal ? 0 : 1,
+              borderColor: colors.border,
               transform: [{ scale: pressed && revealed ? 1.02 : 1 }],
             },
           ]}
@@ -107,7 +119,7 @@ export default function RevealCardScreen() {
             </Text>
           </View>
 
-          {revealed ? (
+          {showingReveal ? (
             isImposter ? (
               <View style={styles.revealBlock}>
                 <Text style={styles.imposterText}>YOU ARE THE IMPOSTER!</Text>
@@ -137,7 +149,7 @@ export default function RevealCardScreen() {
 
           <View style={styles.cardBottom}>
             <Text style={[styles.cardFooter, { color: colors.onReveal }]}>
-              {isImposter ? 'IMPOSTER' : 'CIVILIAN'}
+              {showingReveal ? (isImposter ? 'IMPOSTER' : 'CIVILIAN') : '?'}
             </Text>
           </View>
         </Pressable>
@@ -223,7 +235,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: '#EFEFF4',
     alignItems: 'center',
     justifyContent: 'center',
   },

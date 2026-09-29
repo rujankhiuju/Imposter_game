@@ -13,6 +13,8 @@ export const useGameFlow = () => {
     players,
     round,
     currentPlayerIndex,
+    secretWord,
+    categoryHint,
     setPhase,
     setPlayers,
     setCurrentPlayerIndex,
@@ -45,6 +47,8 @@ export const useGameFlow = () => {
 
     setPlayers(newPlayers);
     assignRoles();
+    // Fresh game: clear any round-scoped secret left from a previous session.
+    useGameStore.setState({ secretWord: '', categoryHint: '', usedWords: [] });
     setPhase('reveal');
     setCurrentPlayerIndex(0);
     setRound(1);
@@ -54,11 +58,16 @@ export const useGameFlow = () => {
 
   const beginReveal = (): { word: string; hint: string; isImposter: boolean } => {
     const currentPlayer = players[currentPlayerIndex];
-    const { word, hint } = pickWord();
     const isImposter = currentPlayer.role === 'imposter';
 
     haptic('medium');
     playSound('flip');
+
+    // Pick the round's secret word once; later reveals reuse it so every
+    // civilian shares the same word (and the discussion timer matches).
+    const { word, hint } = secretWord
+      ? { word: secretWord, hint: categoryHint }
+      : pickWord();
 
     return {
       word: isImposter ? '' : word,
