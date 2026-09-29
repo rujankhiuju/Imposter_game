@@ -1,0 +1,145 @@
+name: Build & Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Expo CLI & EAS CLI
+        run: npm install -g @expo/cli eas-cli
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK (preview profile)
+        id: build-android
+        run: |
+          BUILD_OUTPUT=$(eas build --profile preview --platform android --non-interactive --no-wait --json)
+          echo "$BUILD_OUTPUT"
+          BUILD_ID=$(echo "$BUILD_OUTPUT" | jq -r '.id')
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for Android build to complete
+        run: |
+          eas build:wait ${{ steps.build-android.outputs.build_id }} --platform android
+
+      - name: Download Android artifact
+        run: |
+          ARTIFACT_URL=$(eas build:list --platform=android --limit=1 --json | jq -r '.[0].artifacts.buildUrl')
+          echo "Artifact URL: $ARTIFACT_URL"
+          curl -L "$ARTIFACT_URL" -o imposter.apk
+
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: imposter.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios-simulator:
+    name: Build iOS Simulator App
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Expo CLI & EAS CLI
+        run: npm install -g @expo/cli eas-cli
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build iOS Simulator App (development profile)
+        id: build-ios
+        run: |
+          BUILD_OUTPUT=$(eas build --profile development --platform ios --non-interactive --no-wait --json)
+          echo "$BUILD_OUTPUT"
+          BUILD_ID=$(echo "$BUILD_OUTPUT" | jq -r '.id')
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for iOS build to complete
+        run: |
+          eas build:wait ${{ steps.build-ios.outputs.build_id }} --platform ios
+
+      - name: Download iOS artifact
+        run: |
+          ARTIFACT_URL=$(eas build:list --platform=ios --limit=1 --json | jq -r '.[0].artifacts.buildUrl')
+          echo "Artifact URL: $ARTIFACT_URL"
+          curl -L "$ARTIFACT_URL" -o imposter.app.zip
+
+      - name: Upload iOS App to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: imposter.app.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios-device:
+    name: Build iOS Device IPA (Production)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    if: github.repository_owner == 'rujan12'  # Only run for repo owner (requires Apple Developer account)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Expo CLI & EAS CLI
+        run: npm install -g @expo/cli eas-cli
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build iOS Production IPA
+        id: build-ios-prod
+        run: |
+          BUILD_OUTPUT=$(eas build --profile production --platform ios --non-interactive --no-wait --json)
+          echo "$BUILD_OUTPUT"
+          BUILD_ID=$(echo "$BUILD_OUTPUT" | jq -r '.id')
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for iOS production build to complete
+        run: |
+          eas build:wait ${{ steps.build-ios-prod.outputs.build_id }} --platform ios
+
+      - name: Download iOS IPA artifact
+        run: |
+          ARTIFACT_URL=$(eas build:list --platform=ios --profile=production --limit=1 --json | jq -r '.[0].artifacts.buildUrl')
+          echo "Artifact URL: $ARTIFACT_URL"
+          curl -L "$ARTIFACT_URL" -o imposter.ipa
+
+      - name: Upload IPA to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: imposter.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
