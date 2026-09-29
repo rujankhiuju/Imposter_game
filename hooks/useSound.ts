@@ -1,9 +1,9 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { useSettingsStore } from '../store/settingsStore';
 
 type SoundName = 'flip' | 'timerWarning' | 'voteSubmit' | 'reveal' | 'win' | 'lose';
 
-const SOUND_FILES: Record<SoundName, string> = {
+const SOUND_FILES: Record<SoundName, number> = {
   flip: require('../assets/sounds/flip.mp3'),
   timerWarning: require('../assets/sounds/timer-warning.mp3'),
   voteSubmit: require('../assets/sounds/vote-submit.mp3'),
@@ -12,7 +12,7 @@ const SOUND_FILES: Record<SoundName, string> = {
   lose: require('../assets/sounds/lose.mp3'),
 };
 
-let soundCache: Record<SoundName, Audio.Sound | null> = {
+let playerCache: Record<SoundName, AudioPlayer | null> = {
   flip: null,
   timerWarning: null,
   voteSubmit: null,
@@ -25,44 +25,37 @@ let isLoaded = false;
 
 export const preloadSounds = async (): Promise<void> => {
   if (isLoaded) return;
-  
-  await Promise.all(
-    Object.entries(SOUND_FILES).map(async ([name, file]) => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(file as any, {
-          shouldPlay: false,
-          isLooping: false,
-          volume: 0.7,
-        });
-        soundCache[name as SoundName] = sound;
-      } catch (error) {
-        console.warn(`Failed to load sound: ${name}`, error);
-      }
-    })
-  );
+
+  try {
+    await setAudioModeAsync({ playsInSilentMode: true });
+  } catch (error) {
+    console.warn('Failed to configure audio mode', error);
+  }
+
+  for (const [name, file] of Object.entries(SOUND_FILES)) {
+    try {
+      const player = createAudioPlayer(file);
+      player.volume = 0.7;
+      playerCache[name as SoundName] = player;
+    } catch (error) {
+      console.warn(`Failed to load sound: ${name}`, error);
+    }
+  }
   isLoaded = true;
 };
 
 export const unloadSounds = async (): Promise<void> => {
-  await Promise.all(
-    Object.values(soundCache).map(async (sound) => {
-      if (sound) {
-        try {
-          await sound.unloadAsync();
-        } catch (error) {
-          console.warn('Failed to unload sound', error);
-        }
+  for (const name of Object.keys(playerCache) as SoundName[]) {
+    const player = playerCache[name];
+    if (player) {
+      try {
+        player.remove();
+      } catch (error) {
+        console.warn('Failed to unload sound', error);
       }
-    })
-  );
-  soundCache = {
-    flip: null,
-    timerWarning: null,
-    voteSubmit: null,
-    reveal: null,
-    win: null,
-    lose: null,
-  };
+      playerCache[name] = null;
+    }
+  }
   isLoaded = false;
 };
 
@@ -70,10 +63,11 @@ export const playSound = async (name: SoundName): Promise<void> => {
   const enableSounds = useSettingsStore.getState().enableSounds;
   if (!enableSounds) return;
 
-  const sound = soundCache[name];
-  if (sound) {
+  const player = playerCache[name];
+  if (player) {
     try {
-      await sound.replayAsync();
+      await player.seekTo(0);
+      player.play();
     } catch (error) {
       console.warn(`Failed to play sound: ${name}`, error);
     }

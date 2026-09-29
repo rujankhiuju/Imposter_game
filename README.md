@@ -12,7 +12,7 @@ A social deduction party game (Spyfall/Among Us style) built with React Native, 
 - **Word Bank**: 200 words across 10 built-in categories + custom categories/words
 - **Customization**: Create custom categories with neon colors, add/remove words
 - **Dark Theme**: Moody dark UI with 10 neon accent colors per category
-- **Haptics & Sound**: Expo Haptics + Expo AV for tactile/audio feedback
+- **Haptics & Sound**: Expo Haptics + Expo Audio for tactile/audio feedback
 - **Persistence**: AsyncStorage for settings, categories, words, scores, and game state
 
 ## Tech Stack
@@ -22,7 +22,7 @@ A social deduction party game (Spyfall/Among Us style) built with React Native, 
 - **Reanimated 3** + **Gesture Handler** for 60fps UI-thread animations
 - **Zustand** for lightweight state management with AsyncStorage persistence
 - **Space Grotesk** font for headings via `@expo-google-fonts/space-grotesk`
-- **Expo AV** for sound effects, **Expo Haptics** for haptic feedback
+- **Expo Audio** for sound effects, **Expo Haptics** for haptic feedback
 - **TypeScript** with strict mode
 
 ## Project Structure

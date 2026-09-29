@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { COLORS } from '../constants/theme';
+import { preloadSounds } from '../hooks/useSound';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,6 +20,7 @@ export default function RootLayout() {
   React.useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
+      preloadSounds();
     }
   }, [fontsLoaded]);
 
