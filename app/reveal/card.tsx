@@ -47,6 +47,15 @@ export default function RevealCardScreen() {
   const flipStyle = useAnimatedStyle(() => ({
     transform: [{ perspective: 1000 }, { rotateY: `${flip.value * 180}deg` }],
   }));
+  // Android backface culling only looks at a view's own transform, so it
+  // can't handle nested flips — swap faces at 90° (edge-on, invisible)
+  // using the flip progress instead.
+  const frontStyle = useAnimatedStyle(() => ({
+    opacity: flip.value < 0.5 ? 1 : 0,
+  }));
+  const backStyle = useAnimatedStyle(() => ({
+    opacity: flip.value >= 0.5 ? 1 : 0,
+  }));
 
   // Only trust cached reveal data for the player it was fetched for —
   // back navigation can land on this screen with a different index.
@@ -132,7 +141,7 @@ export default function RevealCardScreen() {
         >
           <Animated.View style={[StyleSheet.absoluteFill, flipStyle]}>
             {/* FRONT — neutral, never leaks the role */}
-            <View style={[styles.face, styles.frontFace]}>
+            <Animated.View style={[styles.face, styles.frontFace, frontStyle]}>
               <View style={styles.cardTop}>
                 <Text style={[styles.cardName, { color: colors.onReveal }]} numberOfLines={1}>
                   {currentPlayer.name.toUpperCase()}
@@ -151,14 +160,15 @@ export default function RevealCardScreen() {
               <View style={styles.cardBottom}>
                 <Text style={[styles.cardFooter, { color: colors.onReveal }]}>?</Text>
               </View>
-            </View>
+            </Animated.View>
 
             {/* BACK — role-colored, shown mid/after flip */}
-            <View
+            <Animated.View
               style={[
                 styles.face,
                 styles.backFace,
                 styles.backFaceRotated,
+                backStyle,
                 { backgroundColor: cardColor },
               ]}
             >
@@ -197,7 +207,7 @@ export default function RevealCardScreen() {
                   {activeReveal ? (isImposter ? 'IMPOSTER' : 'CIVILIAN') : ''}
                 </Text>
               </View>
-            </View>
+            </Animated.View>
           </Animated.View>
         </Pressable>
 
@@ -259,7 +269,6 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     justifyContent: 'space-between',
     alignItems: 'center',
-    backfaceVisibility: 'hidden',
   },
   frontFace: {
     backgroundColor: 'transparent',
