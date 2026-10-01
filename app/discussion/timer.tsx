@@ -9,11 +9,11 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
-import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
+import { SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { GAME_CONSTANTS } from '../../constants/game';
 
 export default function DiscussionTimerScreen() {
-  const { settings, players, secretWord, phase, setPhase } = useGameStore();
+  const { settings, players, phase, setPhase } = useGameStore();
   const { enableHaptics, enableSounds } = useSettingsStore();
   const { colors } = useTheme();
   const { trigger: haptic } = useHaptics();
@@ -73,10 +73,6 @@ export default function DiscussionTimerScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.phaseLabel, { color: colors.textMuted }]}>DISCUSS!</Text>
-          <View style={[styles.wordCard, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.wordCaption, { color: colors.textMuted }]}>THE WORD IS</Text>
-            <Text style={[styles.wordText, { color: colors.textPrimary }]}>{secretWord}</Text>
-          </View>
           <Text style={[styles.meta, { color: colors.textSecondary }]}>
             {imposterCount} Imposter{imposterCount > 1 ? 's' : ''} hiding among {players.length} players
           </Text>
@@ -131,24 +127,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fontFamily.display,
     fontSize: TYPOGRAPHY.fontSize.xl,
     letterSpacing: 2,
-  },
-  wordCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    alignItems: 'center',
-    width: '100%',
-  },
-  wordCaption: {
-    fontFamily: TYPOGRAPHY.fontFamily.heading,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    letterSpacing: 2,
-  },
-  wordText: {
-    fontFamily: TYPOGRAPHY.fontFamily.display,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    marginTop: SPACING.xs,
   },
   meta: {
     fontFamily: TYPOGRAPHY.fontFamily.body,

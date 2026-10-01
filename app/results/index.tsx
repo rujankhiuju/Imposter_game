@@ -16,7 +16,7 @@ import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
  * voting screen advanced here — this screen only displays the outcome.
  */
 export default function ResultsScreen() {
-  const { players, round, resetGame, resetSession } = useGameStore();
+  const { players, round, secretWord, resetGame, resetSession } = useGameStore();
   const { resetSessionScores } = useScoreStore();
   const { setFirstLaunch } = useSettingsStore();
   const { colors } = useTheme();
@@ -63,6 +63,12 @@ export default function ResultsScreen() {
             <Text style={[styles.winnerText, { color: bannerTextColor }]}>{winnerText}</Text>
             <Text style={[styles.roundText, { color: bannerTextColor }]}>Round {round} complete</Text>
           </View>
+          <View style={[styles.wordBanner, SHADOWS.card, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.wordBannerCaption, { color: colors.primaryText }]}>THE WORD WAS</Text>
+            <Text style={[styles.wordBannerWord, { color: colors.primaryText }]} numberOfLines={2}>
+              {secretWord || '—'}
+            </Text>
+          </View>
           <Text style={[styles.secretWord, { color: colors.textSecondary }]}>
             Imposter{imposters.length > 1 ? 's' : ''}: {imposters.map((p) => p.name).join(', ')}
             {!impostersCaught && ' — not caught!'}
@@ -104,9 +110,6 @@ export default function ResultsScreen() {
                 </View>
                 <Text style={[styles.revealName, { color: colors.textPrimary }]} numberOfLines={1}>
                   {player.name}
-                </Text>
-                <Text style={[styles.revealWord, { color: colors.textSecondary }]} numberOfLines={2}>
-                  {player.role === 'imposter' ? '(didn’t know it)' : player.word}
                 </Text>
                 <Text
                   style={[
@@ -176,6 +179,27 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     opacity: 0.8,
   },
+  wordBanner: {
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    gap: 2,
+  },
+  wordBannerCaption: {
+    fontFamily: TYPOGRAPHY.fontFamily.heading,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    opacity: 0.75,
+  },
+  wordBannerWord: {
+    fontFamily: TYPOGRAPHY.fontFamily.display,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    textAlign: 'center',
+  },
   secretWord: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -216,12 +240,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fontFamily.headingMedium,
     fontSize: TYPOGRAPHY.fontSize.md,
     textAlign: 'center',
-  },
-  revealWord: {
-    fontFamily: TYPOGRAPHY.fontFamily.body,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    textAlign: 'center',
-    minHeight: 34,
   },
   revealVotes: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,

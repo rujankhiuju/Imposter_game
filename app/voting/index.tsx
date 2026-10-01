@@ -25,11 +25,13 @@ export default function VotingScreen() {
 
   const [showResults, setShowResults] = useState(false);
   const [revealIndex, setRevealIndex] = useState(0);
+  const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
   const lastFinishPressRef = useRef(0);
 
   const currentVoter = players.find((p) => !p.hasVoted);
   const allVoted = !currentVoter;
   const votedCount = players.filter((p) => p.hasVoted).length;
+  const selectedPlayer = players.find((p) => p.id === selectedTarget);
 
   useEffect(() => {
     if (!showResults) return;
@@ -46,12 +48,20 @@ export default function VotingScreen() {
     return () => clearInterval(timer);
   }, [showResults, players.length]);
 
-  const handleVote = (targetId: number) => {
+  // Tap = highlight the pick; the confirm button locks it in.
+  const handleSelect = (targetId: number) => {
     if (!currentVoter || showResults || targetId === currentVoter.id) return;
-
-    useGameStore.getState().setVote(currentVoter.id, targetId);
-    useGameStore.getState().incrementVotes(targetId);
+    setSelectedTarget(targetId);
     haptic('light');
+  };
+
+  const handleConfirm = () => {
+    if (!currentVoter || selectedTarget === null || showResults) return;
+
+    useGameStore.getState().setVote(currentVoter.id, selectedTarget);
+    useGameStore.getState().incrementVotes(selectedTarget);
+    setSelectedTarget(null);
+    haptic('medium');
     play('voteSubmit');
   };
 
@@ -88,7 +98,7 @@ export default function VotingScreen() {
             <Text style={[styles.instruction, { color: colors.textSecondary }]}>
               Pass the phone to{' '}
               <Text style={[styles.voterName, { color: colors.textPrimary }]}>{currentVoter.name}</Text>
-              {' — '}tap who they think the Imposter is ({votedCount}/{players.length} voted).
+              {' — '}tap a name to pick, then confirm. ({votedCount}/{players.length} voted)
             </Text>
           )}
           {!showResults && allVoted && (
@@ -109,9 +119,9 @@ export default function VotingScreen() {
                 <VoteButton
                   key={player.id}
                   playerName={player.name}
-                  isSelected={false}
+                  isSelected={selectedTarget === player.id}
                   voteCount={isRowRevealing ? player.votesReceived : 0}
-                  onPress={() => handleVote(player.id)}
+                  onPress={() => handleSelect(player.id)}
                   disabled={showResults || player.id === currentVoter?.id}
                   isRevealing={isRowRevealing}
                   revealRole={isRowRevealing ? player.role : undefined}
@@ -119,6 +129,15 @@ export default function VotingScreen() {
               );
             })}
           </View>
+
+          {!showResults && selectedPlayer && currentVoter && (
+            <PillButton
+              title={`Confirm Vote — ${selectedPlayer.name} ✓`}
+              onPress={handleConfirm}
+              fullWidth
+              style={styles.actionButton}
+            />
+          )}
 
           {!showResults && allVoted && (
             <PillButton title="Reveal Votes" onPress={handleReveal} fullWidth style={styles.actionButton} />

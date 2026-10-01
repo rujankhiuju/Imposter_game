@@ -100,6 +100,19 @@ export const useCategoryStore = create<CategoryStore>()(
     {
       name: 'imposter-category-store',
       storage: createJSONStorage(() => AsyncStorage),
+      // Builtins always come from code (new words/hints/categories ship in
+      // updates); custom categories and added words persist across sessions.
+      merge: (persisted, current) => {
+        const stored = persisted as Partial<CategoryStore> | undefined;
+        if (!stored || !Array.isArray(stored.categories)) return current;
+        const customCategories = stored.categories.filter((c) => c.isCustom);
+        return {
+          ...current,
+          ...stored,
+          categories: [...BUILTIN_CATEGORIES, ...customCategories],
+          customWordsByCategory: stored.customWordsByCategory ?? {},
+        };
+      },
     }
   )
 );

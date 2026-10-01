@@ -4,6 +4,8 @@ export interface Category {
   emoji?: string;
   neonColor: string;
   hintPrefix: string;
+  /** Varied hint lines shown to the imposter; falls back to hintPrefix. */
+  hints?: string[];
   words: string[];
   isCustom: boolean;
 }

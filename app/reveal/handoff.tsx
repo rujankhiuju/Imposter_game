@@ -38,7 +38,8 @@ export default function HandoffScreen() {
               Player {nextIndex + 1} of {players.length}
             </Text>
           </View>
-          <Text style={[styles.hint, { color: colors.textSecondary }]}>\n            No peeking! Their card is secret.
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            No peeking! Their card is secret.
           </Text>
         </Animated.View>
 

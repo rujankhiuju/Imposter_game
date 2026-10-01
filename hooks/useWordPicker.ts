@@ -33,7 +33,9 @@ export const useWordPicker = () => {
 
   const getHintForImposter = (): string => {
     const category = useCategoryStore.getState().getCategory(settings.categoryId);
-    return category?.hintPrefix ?? 'It is something...';
+    if (!category) return 'It is something...';
+    const hints = category.hints?.length ? category.hints : [category.hintPrefix];
+    return hints[Math.floor(Math.random() * hints.length)];
   };
 
   return { pickWord, getHintForImposter };
