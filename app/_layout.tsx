@@ -21,6 +21,7 @@ function RootStack() {
         <Stack.Screen name="index" options={{ presentation: 'card' }} />
         <Stack.Screen name="setup/player-names" options={{ presentation: 'card' }} />
         <Stack.Screen name="setup/settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="setup/categories" options={{ presentation: 'card' }} />
         <Stack.Screen name="reveal/card" options={{ presentation: 'card' }} />
         <Stack.Screen name="reveal/handoff" options={{ presentation: 'card' }} />
         <Stack.Screen name="discussion/timer" options={{ presentation: 'card' }} />

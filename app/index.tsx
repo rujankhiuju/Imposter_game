@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, ScrollView, Text, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeContainer } from '../components/layout/SafeContainer';
@@ -10,7 +10,7 @@ import { useCategoryStore } from '../store/categoryStore';
 import { useGameFlow } from '../hooks/useGameFlow';
 import { useTheme } from '../hooks/useTheme';
 import { useHaptics } from '../hooks/useHaptics';
-import { SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../constants/theme';
+import { SPACING, RADIUS, TYPOGRAPHY } from '../constants/theme';
 import { GAME_CONSTANTS } from '../constants/game';
 
 const TIMER_PRESETS = [30, 60, 90, 120, 180, 300];
@@ -27,8 +27,6 @@ export default function HomeScreen() {
   const { categories } = useCategoryStore();
   const { startGame } = useGameFlow();
   const { trigger: haptic } = useHaptics();
-
-  const [showCategories, setShowCategories] = useState(false);
 
   const handleStartGame = () => {
     const result = startGame();
@@ -58,28 +56,11 @@ export default function HomeScreen() {
   const hasSelection = selectedIds.length > 0;
   const categoryValue = !hasSelection
     ? 'None'
-    : selectedIds.length === 1
-      ? categories.find((c) => c.id === selectedIds[0])?.name ?? '1 selected'
-      : `${selectedIds.length} selected`;
-
-  // Never mutate the stored array — build a new one on every change.
-  const toggleCategory = (id: string) => {
-    haptic('light');
-    const next = selectedIds.includes(id)
-      ? selectedIds.filter((c) => c !== id)
-      : [...selectedIds, id];
-    setSettings({ categoryIds: next });
-  };
-
-  const selectAllCategories = () => {
-    haptic('light');
-    setSettings({ categoryIds: categories.map((c) => c.id) });
-  };
-
-  const clearCategorySelection = () => {
-    haptic('light');
-    setSettings({ categoryIds: [] });
-  };
+    : selectedIds.length === categories.length
+      ? 'All Categories'
+      : selectedIds.length === 1
+        ? categories.find((c) => c.id === selectedIds[0])?.name ?? '1 selected'
+        : `${selectedIds.length} selected`;
 
   return (
     <SafeContainer avoidKeyboard={false}>
@@ -106,35 +87,8 @@ export default function HomeScreen() {
           emoji="🏷️"
           label="Categories"
           value={categoryValue}
-          onPress={() => setShowCategories((v) => !v)}
-          rightContent={
-            <Chip label={showCategories ? 'Done' : 'Change'} small selected={showCategories} />
-          }
+          onPress={() => router.push('/setup/categories')}
         />
-        {showCategories && (
-          <View style={[styles.categoryPanel, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.chipRow}>
-              {categories.map((c) => (
-                <Chip
-                  key={c.id}
-                  label={c.name}
-                  selected={selectedIds.includes(c.id)}
-                  onPress={() => toggleCategory(c.id)}
-                />
-              ))}
-            </View>
-            <View style={styles.chipRow}>
-              <Chip label="Select all" small onPress={selectAllCategories} />
-              <Chip label="Clear" small onPress={clearCategorySelection} />
-            </View>
-            <PillButton
-              title="Manage Categories"
-              variant="outline"
-              onPress={() => router.push('/manage/categories')}
-              style={styles.panelButton}
-            />
-          </View>
-        )}
 
         <ListRow
           emoji="🕵️"
@@ -211,15 +165,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: SPACING.sm,
     marginTop: SPACING.sm,
-  },
-  categoryPanel: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  panelButton: {
-    marginTop: SPACING.md,
   },
   selectionWarning: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
