@@ -66,7 +66,11 @@ export default function ManageWordsScreen() {
           showBack
         />
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={[styles.addWordForm, SHADOWS.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <InputField
               label="Add New Word"
@@ -114,6 +118,16 @@ export default function ManageWordsScreen() {
             )}
           </View>
         </ScrollView>
+
+        {/* Direct jump back to the main screen while browsing words. */}
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+          <PillButton
+            title="⌂  Main Screen"
+            variant="solid"
+            onPress={() => router.replace('/')}
+            fullWidth
+          />
+        </View>
       </View>
     </SafeContainer>
   );
@@ -123,10 +137,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
     flexGrow: 1,
+  },
+  footer: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg,
+    borderTopWidth: 1,
   },
   emptyContainer: {
     flex: 1,

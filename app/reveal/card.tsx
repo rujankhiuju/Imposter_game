@@ -25,7 +25,7 @@ const FLIP_OUT_MS = 280;
  * A camera-shy pattern that keeps the word off-screen between peeks.
  */
 export default function RevealCardScreen() {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const { players, currentPlayerIndex } = useGameStore();
   const { beginReveal, proceedToNextPlayer } = useGameFlow();
 
@@ -106,6 +106,8 @@ export default function RevealCardScreen() {
       ? colors.revealImposter
       : colors.revealCivilian
     : colors.surface;
+  // Text on the back face flips white on the dark imposter red.
+  const backTextColor = isImposter ? colors.onRevealImposter : colors.onReveal;
   // Civilians get the shared round word; imposters never see it.
   const shownWord = activeReveal && !isImposter ? activeReveal.word : '';
   const shownHint = activeReveal ? activeReveal.hint : '';
@@ -140,8 +142,16 @@ export default function RevealCardScreen() {
           accessibilityRole="button"
         >
           <Animated.View style={[StyleSheet.absoluteFill, flipStyle]}>
-            {/* FRONT — neutral, never leaks the role */}
-            <Animated.View style={[styles.face, styles.frontFace, frontStyle]}>
+            {/* FRONT — neutral, never leaks the role. Always a light card so
+                the dark text stays readable in dark mode too. */}
+            <Animated.View
+              style={[
+                styles.face,
+                styles.frontFace,
+                frontStyle,
+                { backgroundColor: mode === 'dark' ? '#F2F2F4' : colors.surface },
+              ]}
+            >
               <View style={styles.cardTop}>
                 <Text style={[styles.cardName, { color: colors.onReveal }]} numberOfLines={1}>
                   {currentPlayer.name.toUpperCase()}
@@ -173,7 +183,7 @@ export default function RevealCardScreen() {
               ]}
             >
               <View style={styles.cardTop}>
-                <Text style={[styles.cardName, { color: colors.onReveal }]} numberOfLines={1}>
+                <Text style={[styles.cardName, { color: backTextColor }]} numberOfLines={1}>
                   {currentPlayer.name.toUpperCase()}
                 </Text>
               </View>
@@ -181,13 +191,13 @@ export default function RevealCardScreen() {
               {activeReveal &&
                 (isImposter ? (
                   <View style={styles.revealBlock}>
-                    <Text style={styles.imposterText}>YOU ARE THE IMPOSTER!</Text>
+                    <Text style={[styles.imposterText, { color: backTextColor }]}>
+                      YOU ARE THE IMPOSTER!
+                    </Text>
                     <View style={styles.hintPill}>
-                      <Text style={[styles.hintText, { color: colors.textPrimary }]}>
-                        {shownHint}
-                      </Text>
+                      <Text style={styles.hintText}>{shownHint}</Text>
                     </View>
-                    <Text style={styles.bluffHint}>
+                    <Text style={[styles.bluffHint, { color: backTextColor }]}>
                       Bluff your way through — you don’t know the word!
                     </Text>
                   </View>
@@ -203,7 +213,7 @@ export default function RevealCardScreen() {
                 ))}
 
               <View style={styles.cardBottom}>
-                <Text style={[styles.cardFooter, { color: colors.onReveal }]}>
+                <Text style={[styles.cardFooter, { color: backTextColor }]}>
                   {activeReveal ? (isImposter ? 'IMPOSTER' : 'CIVILIAN') : ''}
                 </Text>
               </View>
@@ -347,7 +357,6 @@ const styles = StyleSheet.create({
   imposterText: {
     fontFamily: TYPOGRAPHY.fontFamily.display,
     fontSize: TYPOGRAPHY.fontSize.xl,
-    color: '#D32F2F',
     textAlign: 'center',
     lineHeight: 34,
   },
@@ -360,13 +369,13 @@ const styles = StyleSheet.create({
   hintText: {
     fontFamily: TYPOGRAPHY.fontFamily.heading,
     fontSize: TYPOGRAPHY.fontSize.sm,
+    color: '#111114',
     textAlign: 'center',
   },
   bluffHint: {
     fontFamily: TYPOGRAPHY.fontFamily.body,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: '#111114',
-    opacity: 0.7,
+    opacity: 0.8,
     textAlign: 'center',
     paddingHorizontal: SPACING.md,
   },

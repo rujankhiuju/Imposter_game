@@ -27,11 +27,13 @@ export interface ThemeColors {
   danger: string;
   success: string;
   warning: string;
-  /** Solid reveal card backgrounds (stay pastel in both themes). */
+  /** Solid reveal card backgrounds (same in both themes). */
   revealCivilian: string;
   revealImposter: string;
   /** Text color used on top of reveal cards. */
   onReveal: string;
+  /** Text color on top of the (dark) imposter reveal color. */
+  onRevealImposter: string;
 }
 
 export const LIGHT_COLORS: ThemeColors = {
@@ -54,9 +56,10 @@ export const LIGHT_COLORS: ThemeColors = {
   danger: '#E53935',
   success: '#16A34A',
   warning: '#F59E0B',
-  revealCivilian: '#6FE9DE',
-  revealImposter: '#F9A8C4',
+  revealCivilian: '#90D5FF',
+  revealImposter: '#780606',
   onReveal: '#111114',
+  onRevealImposter: '#FFFFFF',
 };
 
 export const DARK_COLORS: ThemeColors = {
@@ -79,9 +82,10 @@ export const DARK_COLORS: ThemeColors = {
   danger: '#FF6B6B',
   success: '#4ADE80',
   warning: '#FBBF24',
-  revealCivilian: '#6FE9DE',
-  revealImposter: '#F9A8C4',
+  revealCivilian: '#90D5FF',
+  revealImposter: '#780606',
   onReveal: '#111114',
+  onRevealImposter: '#FFFFFF',
 };
 
 /** @deprecated Legacy alias kept so unmigrated code still typechecks. */

@@ -55,7 +55,11 @@ export const useWordPicker = () => {
 
     const picked = candidates[Math.floor(Math.random() * candidates.length)];
     const category = useCategoryStore.getState().getCategory(picked.categoryId);
-    const hint = category?.hintPrefix ?? 'It is something...';
+    // One shared hint for the round, drawn from the picked word's own
+    // category — civilians see it under the word and the imposter gets
+    // the exact same line, so it always stays related to the word.
+    const lines = category?.hints?.length ? category.hints : [category?.hintPrefix ?? 'It is something...'];
+    const hint = lines[Math.floor(Math.random() * lines.length)];
 
     addUsedWord(picked.word);
     setSecretWord(picked.word);
@@ -65,13 +69,5 @@ export const useWordPicker = () => {
     return { word: picked.word, hint, categoryId: picked.categoryId };
   };
 
-  /** Random hint for the imposter from the picked word's own category. */
-  const getHintForImposter = (categoryId: string): string => {
-    const category = useCategoryStore.getState().getCategory(categoryId);
-    if (!category) return 'It is something...';
-    const hints = category.hints?.length ? category.hints : [category.hintPrefix];
-    return hints[Math.floor(Math.random() * hints.length)];
-  };
-
-  return { getWordPool, pickWord, getHintForImposter };
+  return { getWordPool, pickWord };
 };

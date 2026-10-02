@@ -64,7 +64,7 @@ export default function SettingsScreen() {
                       <Text
                         style={[
                           styles.segmentText,
-                          { color: active ? colors.textPrimary : colors.textMuted },
+                          { color: active ? colors.textPrimary : colors.textSecondary },
                         ]}
                       >
                         {option === 'light' ? '☀️ Light' : '🌙 Dark'}

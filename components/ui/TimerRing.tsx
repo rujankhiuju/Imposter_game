@@ -3,7 +3,7 @@ import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import Animated, { useSharedValue, withTiming, useAnimatedProps } from 'react-native-reanimated';
 import { useTheme } from '../../hooks/useTheme';
-import { SPACING, TYPOGRAPHY, TIMER_RING } from '../../constants/theme';
+import { SPACING, RADIUS, TYPOGRAPHY, TIMER_RING } from '../../constants/theme';
 
 interface TimerRingProps {
   duration: number;
@@ -84,15 +84,19 @@ export const TimerRing: React.FC<TimerRingProps> = ({
         />
       </Svg>
       <View style={styles.timeContainer}>
-        <Text
-          style={[
-            styles.timeText,
-            { fontSize: size * 0.18, color: colors.textPrimary },
-            isWarning && { color: colors.danger },
-          ]}
-        >
-          {formatTime(remaining)}
-        </Text>
+        {/* Light grey/whiteish digits on a dark badge so the countdown
+            stays highly visible in both light and dark themes. */}
+        <View style={styles.timeBadge}>
+          <Text
+            style={[
+              styles.timeText,
+              { fontSize: size * 0.18, color: '#E8E8EC' },
+              isWarning && { color: colors.danger },
+            ]}
+          >
+            {formatTime(remaining)}
+          </Text>
+        </View>
         <Text style={[styles.labelText, { fontSize: size * 0.05, color: colors.textSecondary }]}>
           {isPaused ? 'PAUSED' : 'DISCUSSION'}
         </Text>
@@ -110,6 +114,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  timeBadge: {
+    backgroundColor: '#111114',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
   },
   timeText: {
     fontFamily: TYPOGRAPHY.fontFamily.display,

@@ -26,7 +26,7 @@ export const useGameFlow = () => {
     nextPlayer,
   } = useGameStore();
 
-  const { pickWord, getHintForImposter, getWordPool } = useWordPicker();
+  const { pickWord, getWordPool } = useWordPicker();
   const { trigger: haptic } = useHaptics();
   const { play: playSound } = useSound();
   const { sessionScores, resetSessionScores, saveGameToHistory } = useScoreStore();
@@ -93,12 +93,10 @@ export const useGameFlow = () => {
       return { word: '', hint: 'No words available in the selected categories.', isImposter };
     }
 
-    // Fresh read: pickWord() just wrote the source category this call.
-    const sourceCategoryId = useGameStore.getState().secretCategoryId;
-
+    // Every player gets the same hint line, from the picked word's category.
     return {
       word: isImposter ? '' : picked.word,
-      hint: isImposter ? getHintForImposter(sourceCategoryId) : picked.hint,
+      hint: picked.hint,
       isImposter,
     };
   };

@@ -26,7 +26,8 @@ export default function ResultsScreen() {
   const impostersCaught = imposters.some((p) => p.votesReceived > 0);
   const winnerText = winner === 'imposters' ? 'IMPOSTERS WIN!' : 'CIVILIANS WIN!';
   const bannerColor = winner === 'imposters' ? colors.revealImposter : colors.primary;
-  const bannerTextColor = winner === 'imposters' ? '#111114' : colors.primaryText;
+  // The imposter banner is deep red now — flip its text to white.
+  const bannerTextColor = winner === 'imposters' ? '#FFFFFF' : colors.primaryText;
 
   const sortedPlayers = [...players].sort((a, b) => b.totalScore - a.totalScore);
 
@@ -102,7 +103,7 @@ export default function ResultsScreen() {
                   <Text
                     style={[
                       styles.revealRoleText,
-                      { color: player.role === 'imposter' ? '#D32F2F' : colors.primaryText },
+                      { color: player.role === 'imposter' ? '#FFFFFF' : colors.primaryText },
                     ]}
                   >
                     {player.role.toUpperCase()}
