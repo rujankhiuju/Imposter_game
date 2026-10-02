@@ -26,7 +26,8 @@ export interface Player {
 export interface GameSettings {
   playerCount: number;
   imposterCount: number;
-  categoryId: string;
+  /** One or more selected category ids (multi-select). */
+  categoryIds: string[];
   roundTimerSeconds: number;
   enableSounds: boolean;
   enableHaptics: boolean;
@@ -41,6 +42,8 @@ export interface GameState {
   round: number;
   secretWord: string;
   categoryHint: string;
+  /** Category the secret word was picked from (drives the imposter hint). */
+  secretCategoryId: string;
   usedWords: string[];
 }
 

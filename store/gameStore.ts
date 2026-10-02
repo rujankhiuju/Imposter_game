@@ -7,7 +7,7 @@ import { GAME_CONSTANTS } from '../constants/game';
 const initialSettings: GameSettings = {
   playerCount: GAME_CONSTANTS.DEFAULT_PLAYER_COUNT,
   imposterCount: GAME_CONSTANTS.DEFAULT_IMPOSTER_COUNT,
-  categoryId: 'movies',
+  categoryIds: ['movies'],
   roundTimerSeconds: GAME_CONSTANTS.DEFAULT_TIMER_SECONDS,
   enableSounds: false,
   enableHaptics: true,
@@ -33,6 +33,7 @@ const initialState: GameState = {
   round: 1,
   secretWord: '',
   categoryHint: '',
+  secretCategoryId: '',
   usedWords: [],
 };
 
@@ -45,6 +46,7 @@ type GameStore = GameState & {
   setRound: (round: number) => void;
   setSecretWord: (word: string) => void;
   setCategoryHint: (hint: string) => void;
+  setSecretCategoryId: (categoryId: string) => void;
   addUsedWord: (word: string) => void;
   resetGame: () => void;
   resetSession: () => void;
@@ -106,6 +108,8 @@ export const useGameStore = create<GameStore>()(
 
       setCategoryHint: (categoryHint) => set({ categoryHint }),
 
+      setSecretCategoryId: (secretCategoryId) => set({ secretCategoryId }),
+
       addUsedWord: (word) =>
         set((state) => ({
           usedWords: [...state.usedWords, word],
@@ -122,6 +126,7 @@ export const useGameStore = create<GameStore>()(
           round: state.round + 1,
           secretWord: '',
           categoryHint: '',
+          secretCategoryId: '',
           usedWords: [],
         })),
 
@@ -209,6 +214,48 @@ export const useGameStore = create<GameStore>()(
     {
       name: 'imposter-game-store',
       storage: createJSONStorage(() => AsyncStorage),
+      // Tolerate old/corrupt persisted state: migrate the legacy single
+      // `categoryId` string to `categoryIds`, validate shapes, and fall back
+      // to defaults on anything unreadable instead of crashing.
+      merge: (persisted, current) => {
+        try {
+          const stored = persisted as Partial<GameStore> | undefined;
+          if (!stored || typeof stored !== 'object') return current;
+
+          const legacySettings = (stored.settings ?? {}) as Partial<GameSettings> & {
+            categoryId?: unknown;
+          };
+          const rawSelection =
+            legacySettings.categoryIds !== undefined
+              ? legacySettings.categoryIds
+              : legacySettings.categoryId;
+          const categoryIds = Array.isArray(rawSelection)
+            ? rawSelection.filter((id): id is string => typeof id === 'string' && id.length > 0)
+            : typeof rawSelection === 'string' && rawSelection.length > 0
+              ? [rawSelection]
+              : current.settings.categoryIds;
+
+          const settings: GameSettings = {
+            ...current.settings,
+            ...legacySettings,
+            categoryIds,
+          };
+          // Drop the removed single-selection field entirely.
+          delete (settings as unknown as Record<string, unknown>).categoryId;
+
+          return {
+            ...current,
+            ...stored,
+            settings,
+            players: Array.isArray(stored.players) ? stored.players : current.players,
+            usedWords: Array.isArray(stored.usedWords) ? stored.usedWords : current.usedWords,
+            secretCategoryId:
+              typeof stored.secretCategoryId === 'string' ? stored.secretCategoryId : '',
+          };
+        } catch {
+          return current;
+        }
+      },
       partialize: (state) => ({
         settings: state.settings,
         players: state.players,
@@ -217,6 +264,7 @@ export const useGameStore = create<GameStore>()(
         round: state.round,
         secretWord: state.secretWord,
         categoryHint: state.categoryHint,
+        secretCategoryId: state.secretCategoryId,
         usedWords: state.usedWords,
       }),
     }

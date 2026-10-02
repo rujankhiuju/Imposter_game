@@ -54,7 +54,32 @@ export default function HomeScreen() {
   };
 
   const activePlayers = players.slice(0, settings.playerCount);
-  const selectedCategory = categories.find((c) => c.id === settings.categoryId) ?? categories[0];
+  const selectedIds = settings.categoryIds;
+  const hasSelection = selectedIds.length > 0;
+  const categoryValue = !hasSelection
+    ? 'None'
+    : selectedIds.length === 1
+      ? categories.find((c) => c.id === selectedIds[0])?.name ?? '1 selected'
+      : `${selectedIds.length} selected`;
+
+  // Never mutate the stored array — build a new one on every change.
+  const toggleCategory = (id: string) => {
+    haptic('light');
+    const next = selectedIds.includes(id)
+      ? selectedIds.filter((c) => c !== id)
+      : [...selectedIds, id];
+    setSettings({ categoryIds: next });
+  };
+
+  const selectAllCategories = () => {
+    haptic('light');
+    setSettings({ categoryIds: categories.map((c) => c.id) });
+  };
+
+  const clearCategorySelection = () => {
+    haptic('light');
+    setSettings({ categoryIds: [] });
+  };
 
   return (
     <SafeContainer avoidKeyboard={false}>
@@ -80,7 +105,7 @@ export default function HomeScreen() {
         <ListRow
           emoji="🏷️"
           label="Categories"
-          value={selectedCategory?.name ?? 'None'}
+          value={categoryValue}
           onPress={() => setShowCategories((v) => !v)}
           rightContent={
             <Chip label={showCategories ? 'Done' : 'Change'} small selected={showCategories} />
@@ -93,10 +118,14 @@ export default function HomeScreen() {
                 <Chip
                   key={c.id}
                   label={c.name}
-                  selected={settings.categoryId === c.id}
-                  onPress={() => setSettings({ categoryId: c.id })}
+                  selected={selectedIds.includes(c.id)}
+                  onPress={() => toggleCategory(c.id)}
                 />
               ))}
+            </View>
+            <View style={styles.chipRow}>
+              <Chip label="Select all" small onPress={selectAllCategories} />
+              <Chip label="Clear" small onPress={clearCategorySelection} />
             </View>
             <PillButton
               title="Manage Categories"
@@ -121,10 +150,17 @@ export default function HomeScreen() {
           onPress={cycleTimer}
         />
 
+        {!hasSelection && (
+          <Text style={[styles.selectionWarning, { color: colors.danger }]}>
+            Select at least one category to play.
+          </Text>
+        )}
+
         <PillButton
           title="▶  Start Game"
           onPress={handleStartGame}
           fullWidth
+          disabled={!hasSelection}
           style={styles.startButton}
         />
       </ScrollView>
@@ -184,6 +220,12 @@ const styles = StyleSheet.create({
   },
   panelButton: {
     marginTop: SPACING.md,
+  },
+  selectionWarning: {
+    fontFamily: TYPOGRAPHY.fontFamily.body,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    textAlign: 'center',
+    marginTop: SPACING.lg,
   },
   startButton: {
     marginTop: SPACING.lg,

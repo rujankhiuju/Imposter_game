@@ -26,7 +26,7 @@ export const useGameFlow = () => {
     nextPlayer,
   } = useGameStore();
 
-  const { pickWord, getHintForImposter } = useWordPicker();
+  const { pickWord, getHintForImposter, getWordPool } = useWordPicker();
   const { trigger: haptic } = useHaptics();
   const { play: playSound } = useSound();
   const { sessionScores, resetSessionScores, saveGameToHistory } = useScoreStore();
@@ -36,6 +36,17 @@ export const useGameFlow = () => {
     const validation = validateSettings(settings);
     if (!validation.valid) {
       return validation;
+    }
+
+    // Block start instead of crashing when nothing can be picked.
+    const errors: string[] = [];
+    if (settings.categoryIds.length === 0) {
+      errors.push('Select at least one category');
+    } else if (getWordPool().length === 0) {
+      errors.push('No words available — add words to the selected categories first');
+    }
+    if (errors.length > 0) {
+      return { valid: false, errors };
     }
 
     const newPlayers = players.map((p, i) => ({
@@ -48,7 +59,12 @@ export const useGameFlow = () => {
     setPlayers(newPlayers);
     assignRoles();
     // Fresh game: clear any round-scoped secret left from a previous session.
-    useGameStore.setState({ secretWord: '', categoryHint: '', usedWords: [] });
+    useGameStore.setState({
+      secretWord: '',
+      categoryHint: '',
+      secretCategoryId: '',
+      usedWords: [],
+    });
     setPhase('reveal');
     setCurrentPlayerIndex(0);
     setRound(1);
@@ -58,6 +74,9 @@ export const useGameFlow = () => {
 
   const beginReveal = (): { word: string; hint: string; isImposter: boolean } => {
     const currentPlayer = players[currentPlayerIndex];
+    if (!currentPlayer) {
+      return { word: '', hint: '', isImposter: false };
+    }
     const isImposter = currentPlayer.role === 'imposter';
 
     haptic('medium');
@@ -65,13 +84,21 @@ export const useGameFlow = () => {
 
     // Pick the round's secret word once; later reveals reuse it so every
     // civilian shares the same word (and the discussion timer matches).
-    const { word, hint } = secretWord
+    const picked = secretWord
       ? { word: secretWord, hint: categoryHint }
       : pickWord();
 
+    if (!picked) {
+      // Empty word pool mid-game — show a message instead of crashing.
+      return { word: '', hint: 'No words available in the selected categories.', isImposter };
+    }
+
+    // Fresh read: pickWord() just wrote the source category this call.
+    const sourceCategoryId = useGameStore.getState().secretCategoryId;
+
     return {
-      word: isImposter ? '' : word,
-      hint: isImposter ? getHintForImposter() : hint,
+      word: isImposter ? '' : picked.word,
+      hint: isImposter ? getHintForImposter(sourceCategoryId) : picked.hint,
       isImposter,
     };
   };
